@@ -11,11 +11,15 @@ let statusAnterior = new Map();
 
 const el = {
   tabMedicamentos: document.getElementById('tab-medicamentos'),
+  tabEstoque: document.getElementById('tab-estoque'),
   tabHistorico: document.getElementById('tab-historico'),
   viewMedicamentos: document.getElementById('view-medicamentos'),
+  viewEstoque: document.getElementById('view-estoque'),
   viewHistorico: document.getElementById('view-historico'),
   listaMedicamentos: document.getElementById('lista-medicamentos'),
   emptyMedicamentos: document.getElementById('empty-medicamentos'),
+  listaEstoque: document.getElementById('lista-estoque'),
+  emptyEstoque: document.getElementById('empty-estoque'),
   listaHistorico: document.getElementById('lista-historico'),
   emptyHistorico: document.getElementById('empty-historico'),
   btnNovo: document.getElementById('btn-novo'),
@@ -64,8 +68,10 @@ function computeStatus(med, now) {
 function switchTab(tab) {
   activeTab = tab;
   el.tabMedicamentos.classList.toggle('active', tab === 'medicamentos');
+  el.tabEstoque.classList.toggle('active', tab === 'estoque');
   el.tabHistorico.classList.toggle('active', tab === 'historico');
   el.viewMedicamentos.hidden = tab !== 'medicamentos';
+  el.viewEstoque.hidden = tab !== 'estoque';
   el.viewHistorico.hidden = tab !== 'historico';
   el.btnNovo.hidden = tab !== 'medicamentos';
   render();
@@ -144,6 +150,38 @@ function renderMedicamentos() {
   }
 }
 
+function renderEstoque() {
+  const meds = [...state.medications].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  el.emptyEstoque.hidden = meds.length > 0;
+  el.listaEstoque.innerHTML = '';
+
+  for (const med of meds) {
+    const comprimidosPorDose = med.comprimidosPorDose ?? 1;
+    const estoque = med.estoque ?? 0;
+    const estoqueInsuficiente = estoque < comprimidosPorDose;
+
+    const row = document.createElement('div');
+    row.className = 'estoque-item';
+    row.innerHTML = `
+      <div class="estoque-info">
+        <div class="name"></div>
+        <div class="detail"></div>
+      </div>
+      <div class="estoque-actions">
+        <span class="estoque-qtd${estoqueInsuficiente ? ' estoque-baixo' : ''}"></span>
+        <button class="icon-btn" data-action="editar" title="Editar remédio">✎</button>
+        <button class="icon-btn" data-action="estoque" title="Ajustar estoque">📦</button>
+      </div>
+    `;
+    row.querySelector('.name').textContent = med.nome;
+    row.querySelector('.detail').textContent = `${med.dose} · ${formatComprimidos(comprimidosPorDose)} por dose`;
+    row.querySelector('.estoque-qtd').textContent = formatComprimidos(estoque);
+    row.querySelector('[data-action="editar"]').addEventListener('click', () => abrirEdicao(med));
+    row.querySelector('[data-action="estoque"]').addEventListener('click', () => abrirAjusteEstoque(med));
+    el.listaEstoque.appendChild(row);
+  }
+}
+
 function renderHistorico() {
   const items = [...state.history].sort((a, b) => new Date(b.tomadoEm) - new Date(a.tomadoEm));
   el.emptyHistorico.hidden = items.length > 0;
@@ -169,6 +207,7 @@ function renderHistorico() {
 
 function render() {
   if (activeTab === 'medicamentos') renderMedicamentos();
+  else if (activeTab === 'estoque') renderEstoque();
   else renderHistorico();
 }
 
@@ -427,6 +466,7 @@ async function zerarDados() {
 
 function wireEvents() {
   el.tabMedicamentos.addEventListener('click', () => switchTab('medicamentos'));
+  el.tabEstoque.addEventListener('click', () => switchTab('estoque'));
   el.tabHistorico.addEventListener('click', () => switchTab('historico'));
   el.btnNovo.addEventListener('click', abrirCadastro);
   el.medCancel.addEventListener('click', () => closeSheet(el.modalMedicamento));

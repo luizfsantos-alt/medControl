@@ -58,6 +58,7 @@
 
   <nav class="tabs">
     <button id="tab-medicamentos" class="active" type="button">Remédios</button>
+    <button id="tab-estoque" type="button">Estoque</button>
     <button id="tab-historico" type="button">Histórico</button>
   </nav>
 
@@ -67,6 +68,15 @@
       <p>💊</p>
       <p>Nenhum remédio cadastrado ainda.</p>
       <p>Toque no + para adicionar o primeiro.</p>
+    </div>
+  </section>
+
+  <section id="view-estoque" class="view" hidden>
+    <div id="lista-estoque"></div>
+    <div id="empty-estoque" class="empty-state" hidden>
+      <p>📦</p>
+      <p>Nenhum remédio cadastrado ainda.</p>
+      <p>Cadastre um remédio na aba Remédios para controlar o estoque dele aqui.</p>
     </div>
   </section>
 

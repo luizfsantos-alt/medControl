@@ -62,6 +62,11 @@ formas — o que for mais rápido no momento:
 - **Editar remédio** — o mesmo formulário de cadastro também atualiza o
   estoque, junto com nome, dose e intervalo.
 
+**Aba Estoque.** Uma terceira aba lista todos os remédios cadastrados com o
+estoque atual, um ao lado do outro — os mesmos remédios da aba Remédios,
+sem lista separada. Dá para ajustar o estoque (rápido ou pelo formulário
+completo) direto dali.
+
 **Backup.** Dado de saúde não pode se perder. Em Ajustes:
 
 - **Exportar backup** gera um `medcontrol-backup-AAAA-MM-DD.json`;
