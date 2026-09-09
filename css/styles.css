@@ -222,6 +222,30 @@ nav.tabs button.active {
   color: var(--text-dim);
 }
 
+.med-card .stock-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.med-card .stock-line .stock-text {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.med-card .stock-line .stock-text.estoque-baixo {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.med-card .stock-line .icon-btn {
+  width: 34px;
+  height: 34px;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
 .hist-item {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -342,6 +366,31 @@ nav.tabs button.active {
 
 .field-row .field {
   flex: 1;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.stepper input {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 1.4rem;
+  text-align: center;
+  width: 110px;
+}
+
+.stepper .icon-btn {
+  width: 48px;
+  height: 48px;
+  font-size: 1.4rem;
 }
 
 .sheet-actions {

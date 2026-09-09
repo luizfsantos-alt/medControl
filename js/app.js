@@ -1,8 +1,8 @@
 import { loadState, saveState, exportBackup, mergeImport, wipeAll } from './state.js';
 import { toast, openSheet, closeSheet, confirmDialog } from './ui.js';
-import { uid, formatHora, formatDiaHora, formatDuracao, clampNumber } from './util.js';
+import { uid, formatHora, formatDiaHora, formatDuracao, clampNumber, roundToHalf, formatComprimidos } from './util.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 let state = loadState();
 let activeTab = 'medicamentos';
@@ -27,7 +27,17 @@ const el = {
   medNome: document.getElementById('med-nome'),
   medDose: document.getElementById('med-dose'),
   medIntervalo: document.getElementById('med-intervalo'),
+  medComprimidos: document.getElementById('med-comprimidos'),
+  medEstoque: document.getElementById('med-estoque'),
   medCancel: document.getElementById('med-cancel'),
+  modalEstoque: document.getElementById('modal-estoque'),
+  estoqueModalTitle: document.getElementById('estoque-modal-title'),
+  estoqueMedId: document.getElementById('estoque-med-id'),
+  estoqueValor: document.getElementById('estoque-valor'),
+  estoqueMenos: document.getElementById('estoque-menos'),
+  estoqueMais: document.getElementById('estoque-mais'),
+  estoqueCancel: document.getElementById('estoque-cancel'),
+  estoqueSalvar: document.getElementById('estoque-salvar'),
   modalConfig: document.getElementById('modal-config'),
   configFechar: document.getElementById('config-fechar'),
   btnExportar: document.getElementById('btn-exportar'),
@@ -74,6 +84,9 @@ function renderMedicamentos() {
     const card = document.createElement('div');
     card.className = 'med-card';
 
+    const comprimidosPorDose = med.comprimidosPorDose ?? 1;
+    const estoque = med.estoque ?? 0;
+
     const head = document.createElement('div');
     head.className = 'med-head';
     head.innerHTML = `
@@ -87,7 +100,8 @@ function renderMedicamentos() {
       </div>
     `;
     head.querySelector('.med-name').textContent = med.nome;
-    head.querySelector('.med-dose').textContent = `${med.dose} · a cada ${med.intervaloHoras}h`;
+    head.querySelector('.med-dose').textContent =
+      `${med.dose} (${formatComprimidos(comprimidosPorDose)}) · a cada ${med.intervaloHoras}h`;
     head.querySelector('[data-action="editar"]').addEventListener('click', () => abrirEdicao(med));
     head.querySelector('[data-action="remover"]').addEventListener('click', () => removerMedicamento(med));
     card.appendChild(head);
@@ -106,6 +120,19 @@ function renderMedicamentos() {
       meta.textContent = `Faltam ${formatDuracao(status.restanteMs)} · última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
       card.appendChild(meta);
     }
+
+    const estoqueLine = document.createElement('div');
+    estoqueLine.className = 'stock-line';
+    const estoqueInsuficiente = estoque < comprimidosPorDose;
+    estoqueLine.innerHTML = `
+      <span class="stock-text${estoqueInsuficiente ? ' estoque-baixo' : ''}"></span>
+      <button class="icon-btn" data-action="estoque" title="Ajustar estoque">📦</button>
+    `;
+    estoqueLine.querySelector('.stock-text').textContent = estoqueInsuficiente
+      ? `Estoque: ${formatComprimidos(estoque)} · insuficiente para a próxima dose`
+      : `Estoque: ${formatComprimidos(estoque)}`;
+    estoqueLine.querySelector('[data-action="estoque"]').addEventListener('click', () => abrirAjusteEstoque(med));
+    card.appendChild(estoqueLine);
 
     const takeBtn = document.createElement('button');
     takeBtn.className = `take-btn ${status.podeTomar ? 'ok' : 'locked'}`;
@@ -180,13 +207,16 @@ async function tomarMedicamento(medId, forcado = false) {
     return tomarMedicamento(medId, true);
   }
 
+  const comprimidos = med.comprimidosPorDose ?? 1;
   state.history.push({
     id: uid(),
     medicamentoId: med.id,
     tomadoEm: now.toISOString(),
     forcado: !status.podeTomar,
+    comprimidos,
   });
   med.ultimaTomada = now.toISOString();
+  med.estoque = Math.max(0, roundToHalf((med.estoque ?? 0) - comprimidos));
   saveState(state);
   render();
   toast(`${med.nome} registrado às ${formatHora(now)}`, 'success');
@@ -212,7 +242,10 @@ async function apagarHistorico(histId) {
 
   state.history = state.history.filter((h) => h.id !== histId);
   const med = state.medications.find((m) => m.id === item.medicamentoId);
-  if (med) recomputeUltimaTomada(med);
+  if (med) {
+    recomputeUltimaTomada(med);
+    if (item.comprimidos) med.estoque = roundToHalf((med.estoque ?? 0) + item.comprimidos);
+  }
   saveState(state);
   render();
   toast('Registro apagado', 'success');
@@ -240,6 +273,8 @@ function abrirCadastro() {
   el.medNome.value = '';
   el.medDose.value = '';
   el.medIntervalo.value = '';
+  el.medComprimidos.value = '1';
+  el.medEstoque.value = '0';
   openSheet(el.modalMedicamento);
   setTimeout(() => el.medNome.focus(), 50);
 }
@@ -250,6 +285,8 @@ function abrirEdicao(med) {
   el.medNome.value = med.nome;
   el.medDose.value = med.dose;
   el.medIntervalo.value = med.intervaloHoras;
+  el.medComprimidos.value = med.comprimidosPorDose ?? 1;
+  el.medEstoque.value = med.estoque ?? 0;
   openSheet(el.modalMedicamento);
 }
 
@@ -259,6 +296,8 @@ function salvarMedicamento(ev) {
   const nome = el.medNome.value.trim();
   const dose = el.medDose.value.trim();
   const intervaloHoras = clampNumber(el.medIntervalo.value, 0.5, 72);
+  const comprimidosPorDose = roundToHalf(clampNumber(el.medComprimidos.value, 0.5, 20));
+  const estoque = roundToHalf(clampNumber(el.medEstoque.value, 0, 100000));
 
   if (!nome || !dose) return;
 
@@ -268,6 +307,8 @@ function salvarMedicamento(ev) {
       med.nome = nome;
       med.dose = dose;
       med.intervaloHoras = intervaloHoras;
+      med.comprimidosPorDose = comprimidosPorDose;
+      med.estoque = estoque;
     }
   } else {
     state.medications.push({
@@ -275,6 +316,8 @@ function salvarMedicamento(ev) {
       nome,
       dose,
       intervaloHoras,
+      comprimidosPorDose,
+      estoque,
       ultimaTomada: null,
       criadoEm: new Date().toISOString(),
     });
@@ -283,6 +326,28 @@ function salvarMedicamento(ev) {
   closeSheet(el.modalMedicamento);
   render();
   toast('Remédio salvo', 'success');
+}
+
+function abrirAjusteEstoque(med) {
+  el.estoqueModalTitle.textContent = `Ajustar estoque · ${med.nome}`;
+  el.estoqueMedId.value = med.id;
+  el.estoqueValor.value = med.estoque ?? 0;
+  openSheet(el.modalEstoque);
+}
+
+function passoEstoque(delta) {
+  const atual = Number(el.estoqueValor.value) || 0;
+  el.estoqueValor.value = Math.max(0, roundToHalf(atual + delta));
+}
+
+function salvarAjusteEstoque() {
+  const med = state.medications.find((m) => m.id === el.estoqueMedId.value);
+  if (!med) return;
+  med.estoque = roundToHalf(clampNumber(el.estoqueValor.value, 0, 100000));
+  saveState(state);
+  closeSheet(el.modalEstoque);
+  render();
+  toast('Estoque atualizado', 'success');
 }
 
 function baixarArquivo(nome, conteudo, tipo) {
@@ -366,6 +431,11 @@ function wireEvents() {
   el.btnNovo.addEventListener('click', abrirCadastro);
   el.medCancel.addEventListener('click', () => closeSheet(el.modalMedicamento));
   el.formMedicamento.addEventListener('submit', salvarMedicamento);
+
+  el.estoqueMenos.addEventListener('click', () => passoEstoque(-0.5));
+  el.estoqueMais.addEventListener('click', () => passoEstoque(0.5));
+  el.estoqueSalvar.addEventListener('click', salvarAjusteEstoque);
+  el.estoqueCancel.addEventListener('click', () => closeSheet(el.modalEstoque));
 
   el.btnConfig.addEventListener('click', () => openSheet(el.modalConfig));
   el.configFechar.addEventListener('click', () => closeSheet(el.modalConfig));

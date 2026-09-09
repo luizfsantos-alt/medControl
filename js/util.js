@@ -31,3 +31,13 @@ export function clampNumber(value, min, max) {
   if (Number.isNaN(n)) return min;
   return Math.min(max, Math.max(min, n));
 }
+
+export function roundToHalf(value) {
+  return Math.round(Number(value) * 2) / 2;
+}
+
+export function formatComprimidos(qtd) {
+  const n = roundToHalf(qtd);
+  const texto = n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  return `${texto} ${n === 1 ? 'comprimido' : 'comprimidos'}`;
+}

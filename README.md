@@ -30,8 +30,9 @@ Qualquer servidor estático serve: `npx serve`, `php -S localhost:8000`, nginx.
 
 ## O que o app faz
 
-**Cadastro de remédio.** Nome, dose (ex.: `50mg`) e o intervalo mínimo entre
-doses, em horas (ex.: `8`).
+**Cadastro de remédio.** Nome, dose (ex.: `50mg`), quantos comprimidos tem
+essa dose (aceita meios comprimidos, ex.: `1,5`), o intervalo mínimo entre
+doses em horas (ex.: `8`) e o estoque atual de comprimidos.
 
 **Tela principal.** Um card por remédio, com o status:
 
@@ -47,7 +48,19 @@ esquecimento, mas sem travar quem realmente precisa registrar fora do padrão
 
 **Histórico.** Toda dose registrada, com data/hora e um aviso quando foi
 "forçada" (registrada dentro do intervalo). Dá para apagar um registro
-errado — a próxima dose permitida é recalculada a partir do que sobrar.
+errado — a próxima dose permitida é recalculada a partir do que sobrar, e os
+comprimidos daquela dose voltam para o estoque.
+
+**Estoque.** Cada dose registrada desconta automaticamente do estoque a
+quantidade de comprimidos daquela dose. Um aviso aparece quando o estoque não
+é mais suficiente para a próxima dose. O estoque pode ser corrigido de duas
+formas — o que for mais rápido no momento:
+
+- **Ajuste rápido** — o ícone 📦 no card abre um ajuste com botões `+`/`−`
+  (de meio em meio comprimido) e um campo numérico para digitar o valor
+  exato, sem precisar abrir o formulário inteiro.
+- **Editar remédio** — o mesmo formulário de cadastro também atualiza o
+  estoque, junto com nome, dose e intervalo.
 
 **Backup.** Dado de saúde não pode se perder. Em Ajustes:
 

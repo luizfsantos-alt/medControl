@@ -1,4 +1,4 @@
-const VERSION = 'medcontrol-v1.0.0';
+const VERSION = 'medcontrol-v1.1.0';
 const NETWORK_TIMEOUT_MS = 2500;
 
 const PRECACHE = [

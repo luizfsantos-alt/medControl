@@ -105,11 +105,38 @@
           <input type="number" id="med-intervalo" required min="0.5" max="72" step="0.5" placeholder="Ex.: 8" />
         </div>
       </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="med-comprimidos">Comprimidos por dose</label>
+          <input type="number" id="med-comprimidos" required min="0.5" max="20" step="0.5" placeholder="Ex.: 1 ou 1,5" />
+        </div>
+        <div class="field">
+          <label for="med-estoque">Estoque (comprimidos)</label>
+          <input type="number" id="med-estoque" required min="0" max="100000" step="0.5" placeholder="Ex.: 30" />
+        </div>
+      </div>
       <div class="sheet-actions">
         <button type="button" class="btn" id="med-cancel">Cancelar</button>
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: ajuste rápido de estoque -->
+<div class="overlay" id="modal-estoque" hidden>
+  <div class="sheet">
+    <h2 id="estoque-modal-title">Ajustar estoque</h2>
+    <input type="hidden" id="estoque-med-id" />
+    <div class="stepper">
+      <button type="button" class="icon-btn" id="estoque-menos" aria-label="Diminuir">−</button>
+      <input type="number" id="estoque-valor" min="0" max="100000" step="0.5" />
+      <button type="button" class="icon-btn" id="estoque-mais" aria-label="Aumentar">+</button>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn" id="estoque-cancel">Cancelar</button>
+      <button type="button" class="btn primary" id="estoque-salvar">Salvar</button>
+    </div>
   </div>
 </div>
 
