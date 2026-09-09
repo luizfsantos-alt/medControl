@@ -1,8 +1,7 @@
-const VERSION = 'medcontrol-v1.1.0';
+const VERSION = 'medcontrol-v1.1.1';
 const NETWORK_TIMEOUT_MS = 2500;
 
 const PRECACHE = [
-  './',
   'index.html',
   'manifest.webmanifest',
   'css/styles.css',
@@ -17,12 +16,26 @@ const PRECACHE = [
 const CODE_EXTENSIONS = ['.html', '.js', '.css', '.webmanifest'];
 
 function isCode(url) {
-  return CODE_EXTENSIONS.some((ext) => url.pathname.endsWith(ext)) || url.pathname.endsWith('/');
+  return CODE_EXTENSIONS.some((ext) => url.pathname.endsWith(ext));
 }
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(VERSION).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(VERSION);
+      // um a um, para que um único arquivo com problema não derrube a
+      // instalação inteira; cache: 'reload' força ida à rede, sem aceitar
+      // uma cópia antiga do próprio cache HTTP do navegador.
+      await Promise.all(
+        PRECACHE.map(async (url) => {
+          try {
+            await cache.add(new Request(url, { cache: 'reload' }));
+          } catch {
+            /* aquele arquivo fica de fora do precache; o app segue funcionando */
+          }
+        }),
+      );
+    })(),
   );
 });
 
@@ -49,7 +62,7 @@ function networkWithTimeout(request) {
       }
     }, NETWORK_TIMEOUT_MS);
 
-    fetch(request).then(
+    fetch(request, { cache: 'reload' }).then(
       (response) => {
         if (!settled) {
           settled = true;
@@ -68,14 +81,14 @@ function networkWithTimeout(request) {
   });
 }
 
-async function networkFirst(request) {
+async function networkFirst(request, cacheKey) {
   const cache = await caches.open(VERSION);
   try {
     const response = await networkWithTimeout(request);
-    if (response && response.ok) cache.put(request, response.clone());
+    if (response && response.ok) cache.put(cacheKey, response.clone());
     return response;
   } catch {
-    const cached = await cache.match(request);
+    const cached = await cache.match(cacheKey);
     if (cached) return cached;
     return cache.match('index.html');
   }
@@ -91,9 +104,21 @@ async function cacheFirst(request) {
 }
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  const url = new URL(request.url);
   if (url.origin !== location.origin) return;
-  if (event.request.method !== 'GET') return;
+  if (request.method !== 'GET') return;
 
-  event.respondWith(isCode(url) ? networkFirst(event.request) : cacheFirst(event.request));
+  if (request.mode === 'navigate') {
+    const fresh = new Request('index.html', { cache: 'reload' });
+    event.respondWith(networkFirst(fresh, 'index.html'));
+    return;
+  }
+
+  if (isCode(url)) {
+    event.respondWith(networkFirst(request, request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(request));
 });
