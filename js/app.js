@@ -1,6 +1,16 @@
 import { loadState, saveState, exportBackup, mergeImport, wipeAll } from './state.js';
 import { toast, openSheet, closeSheet, confirmDialog } from './ui.js';
-import { uid, formatHora, formatDiaHora, formatDuracao, clampNumber, roundToHalf, formatComprimidos } from './util.js';
+import {
+  uid,
+  formatHora,
+  formatDiaHora,
+  formatDuracao,
+  clampNumber,
+  roundToHalf,
+  formatComprimidos,
+  diasRestantesEstoque,
+  formatDiasRestantes,
+} from './util.js';
 
 const VERSION = '1.1.0';
 
@@ -159,6 +169,8 @@ function renderEstoque() {
     const comprimidosPorDose = med.comprimidosPorDose ?? 1;
     const estoque = med.estoque ?? 0;
     const estoqueInsuficiente = estoque < comprimidosPorDose;
+    const dias = diasRestantesEstoque(med);
+    const duracaoBaixa = dias !== null && dias <= 7;
 
     const row = document.createElement('div');
     row.className = 'estoque-item';
@@ -166,6 +178,7 @@ function renderEstoque() {
       <div class="estoque-info">
         <div class="name"></div>
         <div class="detail"></div>
+        <div class="duracao"></div>
       </div>
       <div class="estoque-actions">
         <span class="estoque-qtd${estoqueInsuficiente ? ' estoque-baixo' : ''}"></span>
@@ -175,6 +188,9 @@ function renderEstoque() {
     `;
     row.querySelector('.name').textContent = med.nome;
     row.querySelector('.detail').textContent = `${med.dose} · ${formatComprimidos(comprimidosPorDose)} por dose`;
+    const duracaoEl = row.querySelector('.duracao');
+    duracaoEl.textContent = formatDiasRestantes(dias);
+    duracaoEl.classList.toggle('duracao-baixa', duracaoBaixa);
     row.querySelector('.estoque-qtd').textContent = formatComprimidos(estoque);
     row.querySelector('[data-action="editar"]').addEventListener('click', () => abrirEdicao(med));
     row.querySelector('[data-action="estoque"]').addEventListener('click', () => abrirAjusteEstoque(med));

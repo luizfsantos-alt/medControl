@@ -295,6 +295,17 @@ nav.tabs button.active {
   font-size: 0.82rem;
 }
 
+.estoque-item .estoque-info .duracao {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
+
+.estoque-item .estoque-info .duracao.duracao-baixa {
+  color: var(--warn);
+  font-weight: 600;
+}
+
 .estoque-item .estoque-actions {
   display: flex;
   align-items: center;

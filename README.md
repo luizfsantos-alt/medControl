@@ -65,7 +65,10 @@ formas — o que for mais rápido no momento:
 **Aba Estoque.** Uma terceira aba lista todos os remédios cadastrados com o
 estoque atual, um ao lado do outro — os mesmos remédios da aba Remédios,
 sem lista separada. Dá para ajustar o estoque (rápido ou pelo formulário
-completo) direto dali.
+completo) direto dali. Cada linha também mostra **para quantos dias o
+estoque atual dá** (estoque ÷ consumo diário, calculado a partir do
+intervalo entre doses e dos comprimidos por dose), com aviso quando restam
+7 dias ou menos.
 
 **Backup.** Dado de saúde não pode se perder. Em Ajustes:
 

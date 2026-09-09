@@ -41,3 +41,20 @@ export function formatComprimidos(qtd) {
   const texto = n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
   return `${texto} ${n === 1 ? 'comprimido' : 'comprimidos'}`;
 }
+
+export function diasRestantesEstoque(med) {
+  const comprimidosPorDose = med.comprimidosPorDose ?? 1;
+  const estoque = med.estoque ?? 0;
+  const dosesPorDia = 24 / med.intervaloHoras;
+  const consumoDiario = comprimidosPorDose * dosesPorDia;
+  if (!(consumoDiario > 0)) return null;
+  return estoque / consumoDiario;
+}
+
+export function formatDiasRestantes(dias) {
+  if (dias === null) return 'duração indefinida';
+  if (dias <= 0) return 'estoque esgotado';
+  if (dias < 1) return 'dura menos de 1 dia';
+  const arredondado = Math.round(dias);
+  return `dura ~${arredondado} ${arredondado === 1 ? 'dia' : 'dias'}`;
+}
