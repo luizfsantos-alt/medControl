@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>MedControl</title>
+<meta name="description" content="Registre o uso dos seus remédios diários e evite tomar a mesma dose duas vezes." />
+<meta name="theme-color" content="#1e40af" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="assets/icon-192.png" />
+<link rel="apple-touch-icon" href="assets/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="stylesheet" href="css/styles.css" />
+<script>
+  // Saída de emergência: #/reset limpa cache + service worker + dados do app
+  // antes de qualquer módulo carregar. Vive aqui, em script clássico, porque
+  // o shell é servido network-first e é sempre o arquivo mais novo disponível.
+  if (location.hash === '#/reset') {
+    (async () => {
+      try {
+        localStorage.removeItem('medcontrol_data_v1');
+        localStorage.removeItem('medcontrol_data_backup');
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+      } finally {
+        location.replace('./');
+      }
+    })();
+  }
+
+  window.__mcBooted = false;
+  setTimeout(() => {
+    if (!window.__mcBooted) {
+      const panel = document.getElementById('rescue-panel');
+      if (panel) panel.hidden = false;
+    }
+  }, 6000);
+</script>
+</head>
+<body>
+<div id="rescue-panel" hidden>
+  <p>O MedControl está demorando para abrir.</p>
+  <button id="rescue-clear">Limpar cache e tentar de novo</button>
+</div>
+
+<div class="app">
+  <header class="topbar">
+    <h1><img src="assets/icon-192.png" alt="" />MedControl</h1>
+    <button class="icon-btn" id="btn-config" title="Ajustes" aria-label="Ajustes">⚙</button>
+  </header>
+
+  <nav class="tabs">
+    <button id="tab-medicamentos" class="active" type="button">Remédios</button>
+    <button id="tab-historico" type="button">Histórico</button>
+  </nav>
+
+  <section id="view-medicamentos" class="view">
+    <div id="lista-medicamentos"></div>
+    <div id="empty-medicamentos" class="empty-state" hidden>
+      <p>💊</p>
+      <p>Nenhum remédio cadastrado ainda.</p>
+      <p>Toque no + para adicionar o primeiro.</p>
+    </div>
+  </section>
+
+  <section id="view-historico" class="view" hidden>
+    <div id="lista-historico"></div>
+    <div id="empty-historico" class="empty-state" hidden>
+      <p>🗒️</p>
+      <p>Nenhuma dose registrada ainda.</p>
+    </div>
+  </section>
+</div>
+
+<button class="fab" id="btn-novo" title="Novo remédio" aria-label="Novo remédio">+</button>
+
+<div id="update-banner" hidden>Nova versão disponível — toque para atualizar</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<!-- Modal: cadastrar/editar remédio -->
+<div class="overlay" id="modal-medicamento" hidden>
+  <div class="sheet">
+    <h2 id="med-modal-title">Novo remédio</h2>
+    <form id="form-medicamento">
+      <input type="hidden" id="med-id" />
+      <div class="field">
+        <label for="med-nome">Nome do remédio</label>
+        <input type="text" id="med-nome" required maxlength="60" placeholder="Ex.: Losartana" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="med-dose">Dose</label>
+          <input type="text" id="med-dose" required maxlength="30" placeholder="Ex.: 50mg" />
+        </div>
+        <div class="field">
+          <label for="med-intervalo">Intervalo (horas)</label>
+          <input type="number" id="med-intervalo" required min="0.5" max="72" step="0.5" placeholder="Ex.: 8" />
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="btn" id="med-cancel">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: confirmação genérica -->
+<div class="overlay" id="modal-confirm" hidden>
+  <div class="sheet">
+    <h2 id="confirm-title">Confirmar</h2>
+    <p class="confirm-message" id="confirm-message"></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn" id="confirm-cancel">Cancelar</button>
+      <button type="button" class="btn primary" id="confirm-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ajustes / backup -->
+<div class="overlay" id="modal-config" hidden>
+  <div class="sheet">
+    <h2>Ajustes</h2>
+    <div class="settings-section">
+      <h3>Backup</h3>
+      <div class="sheet-actions">
+        <button type="button" class="btn" id="btn-exportar">Exportar backup</button>
+        <button type="button" class="btn" id="btn-importar">Importar backup</button>
+      </div>
+      <input type="file" id="input-importar" accept="application/json" hidden />
+    </div>
+    <div class="settings-section">
+      <h3>Notificações</h3>
+      <div class="sheet-actions">
+        <button type="button" class="btn" id="btn-notificacoes">Ativar avisos de horário</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Zona de risco</h3>
+      <div class="sheet-actions">
+        <button type="button" class="btn danger" id="btn-zerar">Apagar todos os dados</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn primary" id="config-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: modo de importação -->
+<div class="overlay" id="modal-import-mode" hidden>
+  <div class="sheet">
+    <h2>Importar backup</h2>
+    <p class="confirm-message">Como você quer aplicar este backup?</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn" id="import-merge">Juntar</button>
+      <button type="button" class="btn danger" id="import-replace">Substituir tudo</button>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn" id="import-cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
