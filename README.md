@@ -40,6 +40,12 @@ doses em horas (ex.: `8`) e o estoque atual de comprimidos.
 - 🔴 **Próxima às HH:MM** — ainda dentro do intervalo, com o tempo restante e
   o horário da última dose.
 
+**Alerta de dose muito atrasada.** Mais grave que tomar cedo demais é ficar
+mais de 24h sem tomar. Passado esse limite (contado a partir do momento em
+que a dose ficou disponível, não do horário da última dose), o status vira
+vermelho — "⚠ Atrasado há Xh" — e um aviso explícito aparece no card
+avisando que isso pode ter consequências negativas à saúde.
+
 **"Tomei agora"** registra a dose na hora. Se o remédio ainda estiver dentro
 do intervalo, o botão vira **"Registrar mesmo assim"** e pede confirmação
 explícita antes de gravar — é a barreira contra dose duplicada por

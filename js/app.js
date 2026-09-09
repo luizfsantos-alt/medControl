@@ -12,7 +12,8 @@ import {
   formatDiasRestantes,
 } from './util.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
+const ATRASO_CRITICO_MS = 24 * 3600000;
 
 let state = loadState();
 let activeTab = 'medicamentos';
@@ -67,12 +68,19 @@ const el = {
 
 function computeStatus(med, now) {
   if (!med.ultimaTomada) {
-    return { podeTomar: true, proxima: null, restanteMs: 0 };
+    return { podeTomar: true, proxima: null, restanteMs: 0, atrasoMs: 0, atrasoCritico: false };
   }
   const ultima = new Date(med.ultimaTomada).getTime();
   const proxima = ultima + med.intervaloHoras * 3600000;
   const restanteMs = proxima - now.getTime();
-  return { podeTomar: restanteMs <= 0, proxima: new Date(proxima), restanteMs };
+  const atrasoMs = Math.max(0, -restanteMs);
+  return {
+    podeTomar: restanteMs <= 0,
+    proxima: new Date(proxima),
+    restanteMs,
+    atrasoMs,
+    atrasoCritico: atrasoMs > ATRASO_CRITICO_MS,
+  };
 }
 
 function switchTab(tab) {
@@ -122,12 +130,15 @@ function renderMedicamentos() {
     head.querySelector('[data-action="remover"]').addEventListener('click', () => removerMedicamento(med));
     card.appendChild(head);
 
+    const pillClasse = status.atrasoCritico ? 'critico' : status.podeTomar ? 'ok' : 'locked';
     const pill = document.createElement('div');
-    pill.className = `status-pill ${status.podeTomar ? 'ok' : 'locked'}`;
+    pill.className = `status-pill ${pillClasse}`;
     pill.innerHTML = '<span class="dot"></span><span></span>';
-    pill.querySelector('span:last-child').textContent = status.podeTomar
-      ? 'Pode tomar'
-      : `Próxima às ${formatHora(status.proxima)}`;
+    pill.querySelector('span:last-child').textContent = status.atrasoCritico
+      ? `⚠ Atrasado há ${formatDuracao(status.atrasoMs)}`
+      : status.podeTomar
+        ? 'Pode tomar'
+        : `Próxima às ${formatHora(status.proxima)}`;
     card.appendChild(pill);
 
     if (!status.podeTomar) {
@@ -135,6 +146,19 @@ function renderMedicamentos() {
       meta.className = 'meta-line';
       meta.textContent = `Faltam ${formatDuracao(status.restanteMs)} · última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
       card.appendChild(meta);
+    } else if (status.atrasoCritico) {
+      const meta = document.createElement('div');
+      meta.className = 'meta-line';
+      meta.textContent = `Última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
+      card.appendChild(meta);
+
+      const alerta = document.createElement('div');
+      alerta.className = 'alerta-critico';
+      alerta.innerHTML = '<strong></strong><span></span>';
+      alerta.querySelector('strong').textContent = `⚠ Mais de 24h sem tomar ${med.nome}`;
+      alerta.querySelector('span').textContent =
+        'Ficar tanto tempo sem essa dose pode ter consequências negativas à sua saúde. Tome assim que possível ou busque orientação médica.';
+      card.appendChild(alerta);
     }
 
     const estoqueLine = document.createElement('div');
