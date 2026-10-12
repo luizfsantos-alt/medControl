@@ -11,7 +11,7 @@ VAPID_PUBLIC_KEY = "BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAE
 # Cole o "id" que o comando devolver aqui embaixo.
 [[kv_namespaces]]
 binding = "SUBSCRIPTIONS"
-id = "COLE_AQUI_O_ID_DO_NAMESPACE"
+id = "b0072102965743ab8d3aabdc16df46e0"
 
 # 11h UTC = 8h em horário de Brasília (UTC-3, sem horário de verão desde 2019).
 # Mudou de fuso? Ajuste o horário e rode "npx wrangler deploy" de novo.
