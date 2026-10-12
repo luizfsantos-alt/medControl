@@ -1,0 +1,19 @@
+name = "medcontrol-push"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Chave pública VAPID: não é segredo (vai junto no JS do app também),
+# por isso fica aqui em texto puro em vez de "wrangler secret".
+[vars]
+VAPID_PUBLIC_KEY = "BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg"
+
+# Criado com: npx wrangler kv namespace create SUBSCRIPTIONS
+# Cole o "id" que o comando devolver aqui embaixo.
+[[kv_namespaces]]
+binding = "SUBSCRIPTIONS"
+id = "COLE_AQUI_O_ID_DO_NAMESPACE"
+
+# 11h UTC = 8h em horário de Brasília (UTC-3, sem horário de verão desde 2019).
+# Mudou de fuso? Ajuste o horário e rode "npx wrangler deploy" de novo.
+[triggers]
+crons = ["0 11 * * *"]

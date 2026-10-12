@@ -181,6 +181,27 @@
       </div>
     </div>
     <div class="settings-section">
+      <h3>Lembrete diário (8h)</h3>
+      <p class="confirm-message">
+        Notificação enviada por um servidor próprio, todo dia às 8h — chega
+        mesmo com o app fechado. Veja <code>server/README.md</code> no
+        repositório para publicar o seu.
+      </p>
+      <div class="field">
+        <label for="push-server-url">Endereço do servidor</label>
+        <input type="url" id="push-server-url" placeholder="https://medcontrol-push.SEU-SUBDOMINIO.workers.dev" />
+      </div>
+      <div class="field">
+        <label for="push-secret">Chave do servidor (se configurou uma)</label>
+        <input type="text" id="push-secret" placeholder="opcional" />
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="btn" id="btn-push-ativar">Ativar lembrete às 8h</button>
+        <button type="button" class="btn" id="btn-push-desativar">Desativar</button>
+      </div>
+      <p class="confirm-message" id="push-status"></p>
+    </div>
+    <div class="settings-section">
       <h3>Zona de risco</h3>
       <div class="sheet-actions">
         <button type="button" class="btn danger" id="btn-zerar">Apagar todos os dados</button>

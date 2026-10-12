@@ -86,6 +86,15 @@ intervalo entre doses e dos comprimidos por dose), com aviso quando restam
 notificação do navegador e avisa quando um remédio bloqueado é liberado —
 funciona enquanto o app está aberto.
 
+**Lembrete diário às 8h.** Diferente do aviso acima, esse chega **mesmo com
+o app fechado** — porque usa Web Push de verdade, através de um servidor
+próprio (`server/`, um Cloudflare Worker gratuito). É a única parte do
+projeto que depende de algo fora do aparelho: o servidor guarda só a
+inscrição de push (um endpoint técnico do navegador), nunca remédios, dose
+ou histórico — esses continuam só no `localStorage`. Veja
+[`server/README.md`](server/README.md) para publicar o seu e ativar em
+Ajustes → "Lembrete diário (8h)".
+
 ---
 
 ## Seus dados
@@ -120,6 +129,7 @@ js/
   ui.js                 toasts e modal de confirmação
   util.js               formatação de data/hora e duração
 assets/                 ícones PWA
+server/                 Worker opcional que manda o lembrete das 8h (Web Push)
 ```
 
 ---
@@ -136,6 +146,13 @@ tomando o remédio sabe se aquele caso é uma exceção legítima.
 **Intervalo, não horário fixo.** A próxima dose permitida é calculada a
 partir da última dose registrada, não de horários fixos do dia — assim o
 controle se ajusta sozinho quando uma dose atrasa ou adianta.
+
+**O servidor de push é opcional e isolado.** Notificação exata às 8h com o
+app fechado não é possível só com HTML/JS estático — exige algo escutando
+num horário fixo, o que por definição é um servidor. Para não contradizer o
+"sem back-end" do resto do projeto, esse servidor fica fora do app (pasta
+`server/`, deploy separado), não guarda nenhum dado de saúde e é inteiro
+opcional: sem ele, o app continua 100% funcional, só sem o lembrete das 8h.
 
 ---
 

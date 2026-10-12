@@ -1,4 +1,4 @@
-const VERSION = 'medcontrol-v1.1.1';
+const VERSION = 'medcontrol-v1.3.0';
 const NETWORK_TIMEOUT_MS = 2500;
 
 const PRECACHE = [
@@ -121,4 +121,40 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(cacheFirst(request));
+});
+
+// Lembrete diário disparado pelo servidor de push (server/). Independe do
+// app estar aberto: o navegador acorda o service worker quando a mensagem
+// chega.
+self.addEventListener('push', (event) => {
+  let payload = { title: 'MedControl', body: 'Lembrete diário de remédios.' };
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch {
+      payload = { title: 'MedControl', body: event.data.text() };
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'MedControl', {
+      body: payload.body || '',
+      icon: 'assets/icon-192.png',
+      badge: 'assets/icon-192.png',
+      tag: 'medcontrol-lembrete-diario',
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    (async () => {
+      const abertas = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of abertas) {
+        if ('focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('index.html');
+    })(),
+  );
 });

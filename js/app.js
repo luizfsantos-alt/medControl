@@ -10,10 +10,13 @@ import {
   formatComprimidos,
   diasRestantesEstoque,
   formatDiasRestantes,
+  urlBase64ToUint8Array,
 } from './util.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const ATRASO_CRITICO_MS = 24 * 3600000;
+const VAPID_PUBLIC_KEY = 'BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg';
+const PUSH_CONFIG_KEY = 'medcontrol_push_config_v1';
 
 let state = loadState();
 let activeTab = 'medicamentos';
@@ -59,6 +62,11 @@ const el = {
   btnImportar: document.getElementById('btn-importar'),
   inputImportar: document.getElementById('input-importar'),
   btnNotificacoes: document.getElementById('btn-notificacoes'),
+  pushServerUrl: document.getElementById('push-server-url'),
+  pushSecret: document.getElementById('push-secret'),
+  btnPushAtivar: document.getElementById('btn-push-ativar'),
+  btnPushDesativar: document.getElementById('btn-push-desativar'),
+  pushStatus: document.getElementById('push-status'),
   btnZerar: document.getElementById('btn-zerar'),
   modalImportMode: document.getElementById('modal-import-mode'),
   importMerge: document.getElementById('import-merge'),
@@ -489,6 +497,113 @@ async function ativarNotificacoes() {
   );
 }
 
+function carregarConfigPush() {
+  try {
+    const raw = localStorage.getItem(PUSH_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : { serverUrl: '', secret: '' };
+  } catch {
+    return { serverUrl: '', secret: '' };
+  }
+}
+
+function salvarConfigPush(config) {
+  localStorage.setItem(PUSH_CONFIG_KEY, JSON.stringify(config));
+}
+
+async function atualizarStatusPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    el.pushStatus.textContent = 'Push não é suportado neste navegador.';
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    el.pushStatus.textContent = sub ? 'Lembrete das 8h ativado neste aparelho.' : 'Lembrete das 8h desativado.';
+  } catch {
+    el.pushStatus.textContent = '';
+  }
+}
+
+function abrirConfigPush() {
+  const config = carregarConfigPush();
+  el.pushServerUrl.value = config.serverUrl || '';
+  el.pushSecret.value = config.secret || '';
+  atualizarStatusPush();
+}
+
+async function ativarPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('Este navegador não suporta notificações push', 'error');
+    return;
+  }
+  const serverUrl = el.pushServerUrl.value.trim().replace(/\/+$/, '');
+  const secret = el.pushSecret.value.trim();
+  if (!serverUrl) {
+    toast('Preencha o endereço do servidor primeiro', 'error');
+    return;
+  }
+
+  const permissao = await Notification.requestPermission();
+  if (permissao !== 'granted') {
+    toast('Permissão de notificação não concedida', 'error');
+    return;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    const resposta = await fetch(`${serverUrl}/subscribe`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(secret ? { 'x-medcontrol-key': secret } : {}),
+      },
+      body: JSON.stringify(sub.toJSON()),
+    });
+    if (!resposta.ok) throw new Error(`servidor respondeu ${resposta.status}`);
+
+    salvarConfigPush({ serverUrl, secret });
+    toast('Lembrete das 8h ativado', 'success');
+  } catch {
+    toast('Não consegui ativar o lembrete — confira o endereço do servidor', 'error');
+  }
+  atualizarStatusPush();
+}
+
+async function desativarPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const config = carregarConfigPush();
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      if (config.serverUrl) {
+        fetch(`${config.serverUrl}/unsubscribe`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...(config.secret ? { 'x-medcontrol-key': config.secret } : {}),
+          },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {});
+      }
+      await sub.unsubscribe();
+    }
+    toast('Lembrete das 8h desativado', 'success');
+  } catch {
+    toast('Não consegui desativar o lembrete', 'error');
+  }
+  atualizarStatusPush();
+}
+
 async function zerarDados() {
   const confirmado = await confirmDialog({
     title: 'Apagar todos os dados?',
@@ -517,7 +632,10 @@ function wireEvents() {
   el.estoqueSalvar.addEventListener('click', salvarAjusteEstoque);
   el.estoqueCancel.addEventListener('click', () => closeSheet(el.modalEstoque));
 
-  el.btnConfig.addEventListener('click', () => openSheet(el.modalConfig));
+  el.btnConfig.addEventListener('click', () => {
+    openSheet(el.modalConfig);
+    abrirConfigPush();
+  });
   el.configFechar.addEventListener('click', () => closeSheet(el.modalConfig));
   el.btnExportar.addEventListener('click', exportarBackup);
   el.btnImportar.addEventListener('click', () => el.inputImportar.click());
@@ -527,6 +645,8 @@ function wireEvents() {
     ev.target.value = '';
   });
   el.btnNotificacoes.addEventListener('click', ativarNotificacoes);
+  el.btnPushAtivar.addEventListener('click', ativarPush);
+  el.btnPushDesativar.addEventListener('click', desativarPush);
   el.btnZerar.addEventListener('click', zerarDados);
 
   el.importMerge.addEventListener('click', () => aplicarImportacao('merge'));
