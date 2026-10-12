@@ -5,7 +5,7 @@ export function toast(message, kind = 'info') {
   el.className = `toast ${kind}`;
   el.textContent = message;
   toastStack.appendChild(el);
-  setTimeout(() => el.remove(), 3200);
+  setTimeout(() => el.remove(), kind === 'error' ? 7000 : 3200);
 }
 
 export function openSheet(el) {

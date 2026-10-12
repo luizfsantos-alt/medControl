@@ -13,7 +13,7 @@ import {
   urlBase64ToUint8Array,
 } from './util.js';
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const ATRASO_CRITICO_MS = 24 * 3600000;
 const VAPID_PUBLIC_KEY = 'BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg';
 const PUSH_CONFIG_KEY = 'medcontrol_push_config_v1';
@@ -549,16 +549,23 @@ async function ativarPush() {
     return;
   }
 
+  let sub;
   try {
     const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
+    sub = await reg.pushManager.getSubscription();
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
     }
+  } catch (err) {
+    toast(`Não consegui criar a inscrição de push: ${err?.message || err}`, 'error');
+    atualizarStatusPush();
+    return;
+  }
 
+  try {
     const resposta = await fetch(`${serverUrl}/subscribe`, {
       method: 'POST',
       headers: {
@@ -567,12 +574,15 @@ async function ativarPush() {
       },
       body: JSON.stringify(sub.toJSON()),
     });
-    if (!resposta.ok) throw new Error(`servidor respondeu ${resposta.status}`);
+    if (!resposta.ok) {
+      const texto = await resposta.text().catch(() => '');
+      throw new Error(`HTTP ${resposta.status}${texto ? ' — ' + texto : ''}`);
+    }
 
     salvarConfigPush({ serverUrl, secret });
     toast('Lembrete das 8h ativado', 'success');
-  } catch {
-    toast('Não consegui ativar o lembrete — confira o endereço do servidor', 'error');
+  } catch (err) {
+    toast(`Não consegui falar com o servidor: ${err?.message || err}`, 'error');
   }
   atualizarStatusPush();
 }
