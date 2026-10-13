@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="-51.2 -51.2 102.4 102.4"><rect x="-51.2" y="-51.2" width="102.4" height="102.4" fill="#EFEBE3"/>
+  <g transform="rotate(-45)">
+    <path d="M-18 -17 H18 A17 17 0 0 1 18 17 H-18 A17 17 0 0 1 -18 -17 Z" fill="none" stroke="#121210" stroke-width="2"/>
+    <rect x="-1" y="-17" width="2" height="34" fill="#121210"/>
+    <path d="M-3 -14 H-18 A14 14 0 0 0 -18 14 H-3 Z" fill="#C8F031"/>
+    <path d="M3 -14 H18 A14 14 0 0 1 18 14 H3 Z" fill="#121210"/>
+  </g></svg>

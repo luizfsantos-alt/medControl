@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-31 -31 62 62" style="color:#121210">
+  <g transform="rotate(-45)">
+    <path d="M-18 -17 H18 A17 17 0 0 1 18 17 H-18 A17 17 0 0 1 -18 -17 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+    <rect x="-1" y="-17" width="2" height="34" fill="currentColor"/>
+    <path d="M-3 -14 H-18 A14 14 0 0 0 -18 14 H-3 Z" fill="#C8F031"/>
+    <path d="M3 -14 H18 A14 14 0 0 1 18 14 H3 Z" fill="currentColor"/>
+  </g></svg>

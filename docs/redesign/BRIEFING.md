@@ -31,7 +31,7 @@ emojis em lugar nenhum.
   `tomarMedicamento` (carimbo e segurar para antecipar).
 - `js/ui.js`: `toast`, `openSheet` e `closeSheet` ganham animação.
 - Novo `js/motion.js`: utilitários de movimento (seção 8).
-- Novos arquivos em `assets/`: fontes e ícone provisório.
+- Novos arquivos em `assets/`: fontes, ícones e selo de notificação (seção 3.6).
 - `sw.js`: precache das fontes e aumento da `VERSION`.
 - `manifest.webmanifest` e metas de `index.html`: cores.
 - `README.md` e `server/README.md`: remover emojis (seção 10).
@@ -204,19 +204,25 @@ Os botões de ícone são quadrados de 38–44px, com borda de 1px em
 
 ### 3.6 Marca
 
-- Logotipo em texto: "MEDCONTROL" na tipografia da marca (3.2), mais o
-  símbolo provisório: dois retângulos lado a lado, o esquerdo em tinta e
-  o direito em lima, os dois com contorno de tinta (SVG na maquete,
-  26×15).
-- **Ícone do app (PNG) é pendência externa.** A arte final será gerada
-  pela mesa. Até lá, gere um provisório a partir do símbolo:
-  - Fundo `#EFEBE3`, símbolo centralizado ocupando 60% da largura (área
-    segura de 80% para a versão maskable).
-  - Exporte em 192 e 512 com o Chromium/Playwright do ambiente (há um
-    Chromium em `/opt/pw-browsers`).
-  - Substitua `assets/icon-192.png` e `assets/icon-512.png`.
-  - Deixe um TODO no README dizendo que a arte final substitui esse
-    provisório.
+A arte final está em `docs/redesign/marca/`. É a cápsula diagonal com
+contorno de tinta, metade lima e metade tinta, separadas por um divisor.
+Ela substitui o símbolo de dois retângulos da maquete.
+
+`original-gerado.jpg` é a imagem gerada pela mesa. Os demais arquivos são
+o redesenho em vetor dela (`comparacao.png` mostra os dois lado a lado).
+Use **só os arquivos vetoriais e os PNGs exportados**, nunca o JPG.
+
+| Arquivo | Destino no app | Uso |
+|---|---|---|
+| `simbolo.svg` | Inline no topo, ao lado de "MEDCONTROL", com 28–30px | O contorno, o divisor e a metade escura usam `currentColor` (`--ink`), então o símbolo clareia sozinho no tema escuro. A metade lima é fixa. As folgas são transparentes. Ao colar inline, remova o `style="color:…"` da raiz |
+| `icon-192.png`, `icon-512.png` | `assets/` (substituem os atuais) | Manifest, `purpose: any` e `maskable`. O símbolo fica dentro do raio seguro de 80%, então o mesmo arquivo serve aos dois |
+| `apple-touch-icon.png` (180) | `assets/` | `<link rel="apple-touch-icon">` |
+| `selo-notificacao-96.png` | `assets/badge-96.png` | `badge` do `showNotification` em `sw.js`. Silhueta branca sobre fundo transparente; o Android pinta de uma cor só |
+| `icon-1024.png`, `icone.svg`, `simbolo-1024.png`, `selo-notificacao.svg` | Ficam na pasta de marca | Matrizes para lojas, materiais e reexportação |
+
+- Inclua os novos arquivos de `assets/` no `PRECACHE` de `sw.js`.
+- O ícone das notificações locais (`new Notification`) e do push continua
+  sendo `assets/icon-192.png`.
 - `theme-color` (meta e manifest): `#EFEBE3`. `background_color`:
   `#EFEBE3`. Mantenha `apple-mobile-web-app-status-bar-style`, mas troque
   para `default`, porque o fundo agora é claro.
@@ -525,7 +531,7 @@ Um commit por etapa, cada uma deixando o app funcional:
 4. **Estoque, Histórico, sheets, toasts, banner, resgate.**
 5. **Movimento:** `motion.js` e os movimentos 01–08 + interface,
    com movimento reduzido.
-6. **Marca:** ícone provisório gerado, manifest e metas de cor, READMEs.
+6. **Marca:** arquivos de `docs/redesign/marca/` instalados (3.6), manifest e metas de cor, READMEs.
 7. **Verificação** (seção 12).
 
 ## 12. Critérios de aceite
@@ -554,9 +560,4 @@ Um commit por etapa, cada uma deixando o app funcional:
 
 ## 13. Pendências externas
 
-- **Arte final do ícone e do símbolo**, a ser gerada pela mesa. Brief:
-  "símbolo geométrico minimalista de cápsula partida em dois retângulos,
-  tinta #121210 sobre papel #EFEBE3, uma metade em lima #C8F031,
-  estética de rótulo farmacêutico suíço, flat, sem gradiente, sem
-  sombra". 1024×1024, com área segura de 80% para a versão maskable.
-  Quando chegar, substitui os PNGs provisórios. Nenhum código muda.
+Nenhuma. A arte da marca foi entregue e vetorizada (seção 3.6).
