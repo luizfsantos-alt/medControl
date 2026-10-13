@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body style="margin:0">
+<title>MedControl em Movimento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: página-prospecto com o protótipo fixo à esquerda e o catálogo de movimentos à direita; empilha no celular. */
+:root {
+  --paper: #EFEBE3;
+  --paper-2: #E4DFD4;
+  --surface: #F8F6F1;
+  --ink: #121210;
+  --ink-2: #5C5850;
+  --rule: #CBC4B6;
+  --hatch: #B3AA99;
+  --lime: #C8F031;
+  --red: #FF3B1F;
+  --on-signal: #121210;
+  --scrim: rgb(18 18 16 / 0.45);
+  --display: 'Archivo', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --std: cubic-bezier(0.2, 0, 0, 1);
+  --stamp: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --heavy: cubic-bezier(0.7, 0, 0.2, 1);
+  --exit: cubic-bezier(0.4, 0, 1, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121210; --paper-2: #1C1B18; --surface: #191815; --ink: #EFEBE3; --ink-2: #9A958B;
+    --rule: #34322D; --hatch: #45423B; --scrim: rgb(0 0 0 / 0.6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121210; --paper-2: #1C1B18; --surface: #191815; --ink: #EFEBE3; --ink-2: #9A958B;
+  --rule: #34322D; --hatch: #45423B; --scrim: rgb(0 0 0 / 0.6); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 16px; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- Página ---------- */
+.page { max-width: 1200px; margin: 0 auto; padding-inline: 16px; padding-block: 32px 72px; }
+@media (min-width: 720px) { .page { padding-inline: 32px; padding-block: 48px 96px; } }
+
+.eyebrow { font: 600 11px/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); margin: 0; }
+.intro { display: grid; gap: 18px; padding-bottom: 32px; border-bottom: 3px solid var(--ink); margin-bottom: 40px; }
+.intro h1 {
+  margin: 0; font-family: var(--display); font-weight: 900; font-stretch: 66%;
+  font-size: clamp(52px, 11vw, 132px); line-height: 0.86; text-transform: uppercase; letter-spacing: -0.01em; text-wrap: balance;
+}
+.intro h1 span { display: inline-block; background: var(--lime); color: var(--on-signal); padding: 0 0.08em; }
+.lede { margin: 0; max-width: 60ch; font-size: 17px; line-height: 1.55; color: var(--ink-2); }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.swatches li { display: flex; align-items: center; gap: 8px; font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--rule); padding: 6px 10px 6px 6px; }
+.swatches i { width: 16px; height: 16px; border: 1px solid var(--ink); display: block; }
+
+.stage { display: grid; gap: 48px; }
+@media (min-width: 960px) {
+  .stage { grid-template-columns: 412px minmax(0, 1fr); gap: 64px; }
+  .stage-phone { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); align-self: start; }
+}
+.stage-phone { display: grid; gap: 14px; justify-items: center; min-width: 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 390px; }
+.ctl, .play {
+  font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink);
+  padding: 11px 12px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+}
+.ctl[aria-pressed="true"], .ctl:active, .play:active { background: var(--ink); color: var(--paper); }
+.caption { font: 500 11px/1.5 var(--mono); color: var(--ink-2); max-width: 390px; margin: 0; text-align: left; width: 100%; }
+
+.moves { min-width: 0; display: grid; gap: 12px; }
+.moves h2 {
+  margin: 28px 0 4px; font-family: var(--display); font-weight: 800; font-stretch: 72%;
+  font-size: 34px; line-height: 1; text-transform: uppercase; text-wrap: balance;
+}
+.moves h2:first-child { margin-top: 0; }
+.moves > p { margin: 0 0 8px; color: var(--ink-2); line-height: 1.55; max-width: 62ch; }
+.move-list { list-style: none; margin: 0; padding: 0; }
+.move {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 8px 16px;
+  padding: 18px 0; border-top: 1px solid var(--rule); align-items: start;
+}
+.move:last-child { border-bottom: 1px solid var(--rule); }
+.move-num { font-family: var(--display); font-weight: 800; font-stretch: 66%; font-size: 34px; line-height: 0.9; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.move h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; line-height: 1.2; }
+.move p { margin: 0 0 10px; color: var(--ink-2); line-height: 1.5; max-width: 60ch; font-size: 15px; }
+.spec { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+@media (max-width: 560px) {
+  .move { grid-template-columns: 40px minmax(0, 1fr); }
+  .play { grid-column: 2; justify-self: start; }
+}
+.table-wrap { overflow-x: auto; border-top: 1px solid var(--ink); }
+table { border-collapse: collapse; width: 100%; font: 400 13px/1.4 var(--mono); min-width: 520px; }
+th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); }
+td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
+.rules li { padding: 12px 0; border-top: 1px solid var(--rule); line-height: 1.5; color: var(--ink-2); max-width: 66ch; }
+.rules li b { color: var(--ink); font-weight: 600; }
+.foot { margin-top: 48px; font: 500 11px/1.6 var(--mono); color: var(--ink-2); max-width: 70ch; }
+
+/* ---------- Aparelho ---------- */
+.device {
+  width: min(390px, 100%); height: 780px; padding: 9px; border-radius: 30px;
+  background: var(--paper-2); border: 1px solid var(--rule);
+}
+.screen {
+  position: relative; height: 100%; border-radius: 22px; overflow: hidden; background: var(--paper);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border: 1px solid var(--rule);
+}
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 16px 14px; border-bottom: 1px solid var(--rule); }
+.brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 900; font-stretch: 70%; font-size: 21px; letter-spacing: 0.03em; line-height: 1; }
+.tb-right { display: flex; align-items: center; gap: 10px; }
+.tb-clock { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.tb-clock .roll { color: var(--ink); font-size: 12px; }
+.icon-btn { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--ink); background: transparent; color: var(--ink); border-radius: 2px; cursor: pointer; }
+
+.scroller { position: relative; overflow-y: auto; padding: 12px 16px 24px; overscroll-behavior: contain; scrollbar-width: thin; }
+.list-head { display: flex; justify-content: space-between; gap: 8px; font: 600 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); padding: 6px 0 12px; }
+.list-head b { color: var(--ink); font-weight: 600; }
+.list { display: flex; flex-direction: column; gap: 12px; }
+
+/* Card */
+.card {
+  position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px;
+  display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px;
+  transition: box-shadow 320ms var(--std), border-color 320ms var(--std);
+}
+.card.k-crit { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); }
+.card-top { display: flex; flex-direction: column; }
+.gauge { height: 3px; background: var(--rule); overflow: hidden; }
+.gauge i { display: block; height: 100%; background: var(--ink); transform-origin: left; transform: scaleX(0); transition: transform 1000ms linear; }
+.k-crit .gauge i { background: var(--red); }
+.tape { height: 28px; background: var(--red); color: var(--on-signal); overflow: hidden; display: flex; align-items: center; }
+.tape-track { display: flex; white-space: nowrap; font: 700 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; animation: tape 20s linear infinite; will-change: transform; }
+@keyframes tape { to { transform: translateX(-50%); } }
+
+.card-head { padding: 4px 16px 0; display: grid; gap: 6px; }
+.name { all: unset; cursor: pointer; font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size: 23px; line-height: 1.05; justify-self: start; }
+.name:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.meta { font: 500 11px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+
+.hero { position: relative; margin: 0 16px; height: 108px; overflow: hidden; border-radius: 2px; }
+.hero-base, .hero-hatch { position: absolute; inset: 0; }
+.hero-base { background: var(--lime); }
+.k-crit .hero-base { background: var(--red); }
+.hero-hatch {
+  background: repeating-linear-gradient(-45deg, var(--hatch) 0 1.5px, transparent 1.5px 8px), var(--paper-2);
+  transform: translateX(101%); transition: transform 600ms var(--heavy);
+}
+.k-wait .hero-hatch { transform: none; transition-duration: 320ms; transition-timing-function: var(--std); }
+.hero-content {
+  position: relative; z-index: 2; height: 100%; padding: 10px 12px 10px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
+  color: var(--on-signal); transition: color 600ms var(--heavy);
+}
+.k-wait .hero-content { color: var(--ink); transition-duration: 320ms; }
+.hero-label, .hero-aside {
+  font: 600 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid currentColor; padding: 4px 6px; transition: background-color 320ms var(--std);
+}
+.hero-label { grid-column: 1; grid-row: 1; justify-self: start; align-self: start; }
+.hero-aside { grid-column: 2; grid-row: 2; align-self: end; white-space: nowrap; }
+.k-wait .hero-label, .k-wait .hero-aside { background: var(--surface); }
+.clock {
+  grid-column: 1; grid-row: 2; align-self: end; justify-self: start;
+  font-family: var(--display); font-weight: 850; font-stretch: 66%; font-size: 66px; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+}
+.stamp {
+  position: absolute; z-index: 3; left: 50%; top: 50%; translate: -50% -50%; transform: rotate(-4deg);
+  color: var(--on-signal); border: 3px solid currentColor; outline: 1px solid currentColor; outline-offset: 3px;
+  padding: 8px 14px; font: 700 19px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+}
+
+.warn { margin: 0 16px; font-size: 14px; line-height: 1.45; }
+.warn b { font-weight: 700; }
+.facts { margin: 0 16px; padding-top: 12px; border-top: 1px solid var(--rule); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.facts div { display: grid; gap: 5px; min-width: 0; }
+.facts dt { font: 500 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.facts dd { margin: 0; font: 600 15px/1 var(--mono); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.facts .unit { font-size: 11px; font-weight: 500; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.facts .short { font: 600 10px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; background: var(--ink); color: var(--paper); padding: 3px 5px; }
+.action { margin: 0 16px; }
+.take {
+  width: 100%; height: 54px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--display); font-weight: 800; font-stretch: 82%; font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase;
+  transition: transform 80ms var(--std);
+}
+.take:active { transform: translateY(2px); }
+.take:disabled { cursor: default; }
+.hold {
+  position: relative; width: 100%; height: 54px; padding: 0; border: 1px solid var(--ink); border-radius: 2px;
+  background: var(--surface); color: var(--ink); cursor: pointer; overflow: hidden;
+  font: 700 13px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.hold-base, .hold-fill { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 12px; }
+.hold-fill { background: var(--ink); color: var(--paper); clip-path: inset(0 100% 0 0); }
+
+/* Roletes de dígitos */
+.roll { display: inline-flex; vertical-align: bottom; }
+.roll .s { position: relative; display: inline-block; overflow: hidden; height: 1.04em; line-height: 1.04; }
+.roll .s > span { display: block; }
+
+/* Estoque */
+.e-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "info qty" "days days"; gap: 8px 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: end; }
+.e-row:first-child { border-top: 1px solid var(--ink); }
+.e-info { grid-area: info; display: grid; gap: 5px; min-width: 0; }
+.e-name { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size: 19px; }
+.e-meta, .e-days { font: 500 11px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.e-qty { grid-area: qty; display: flex; align-items: baseline; gap: 4px; }
+.e-num { font-family: var(--display); font-weight: 850; font-stretch: 66%; font-size: 44px; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.e-unit { font: 500 10px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.e-days { grid-area: days; justify-self: start; }
+.e-days.low { background: var(--ink); color: var(--paper); padding: 4px 6px; }
+
+/* Histórico */
+.day { font: 600 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); padding: 18px 0 8px; border-bottom: 1px solid var(--ink); }
+.day:first-child { padding-top: 6px; }
+.row { display: grid; grid-template-columns: 62px minmax(0, 1fr); grid-template-areas: "time name" "time meta"; gap: 4px 8px; padding: 11px 0; border-bottom: 1px dashed var(--rule); background: var(--paper); }
+.r-time { grid-area: time; font: 600 16px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.r-name { grid-area: name; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.r-meta { grid-area: meta; font: 500 11px/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.forced { font: 600 9px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--ink); padding: 3px 5px; }
+
+/* Barra inferior */
+.bbar { display: grid; grid-template-columns: minmax(0, 1fr) 60px; border-top: 1px solid var(--rule); background: var(--paper); }
+.tabs { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); }
+.tab { all: unset; cursor: pointer; text-align: center; font: 600 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); padding: 24px 0; transition: color 200ms var(--std); }
+.tab[aria-selected="true"] { color: var(--ink); }
+.tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+.ind { position: absolute; top: -1px; left: 0; height: 3px; width: 0; background: var(--ink); transition: transform 320ms var(--std), width 320ms var(--std); }
+.add { border: 0; background: var(--ink); color: var(--paper); display: grid; place-items: center; cursor: pointer; }
+
+/* Aviso */
+.toasts { position: absolute; top: 0; left: 0; right: 0; z-index: 30; pointer-events: none; }
+.toast { background: var(--ink); color: var(--paper); font: 600 12px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 19px 16px 18px; border-bottom: 2px dashed var(--paper); }
+
+/* Janela */
+.sheet-wrap { position: absolute; inset: 0; z-index: 20; }
+.backdrop { position: absolute; inset: 0; background: var(--scrim); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--paper); border-top: 3px solid var(--ink); padding: 20px 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+.sheet h2 { margin: 0; font-family: var(--display); font-weight: 850; font-stretch: 70%; font-size: 30px; line-height: 1; text-transform: uppercase; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font: 600 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.field input { all: unset; box-sizing: border-box; width: 100%; border-bottom: 1.5px solid var(--ink); padding: 8px 0; font: 500 17px/1.2 var(--sans); color: var(--ink); }
+.field input::placeholder { color: var(--ink-2); opacity: 0.7; }
+.field input:focus-visible { box-shadow: 0 1.5px 0 0 var(--ink); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.btn { height: 50px; border-radius: 2px; border: 1px solid var(--ink); background: transparent; color: var(--ink); font-family: var(--display); font-weight: 800; font-stretch: 82%; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.link-btn { all: unset; cursor: pointer; justify-self: start; font: 600 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Sem transições: montagem inicial, reinício e movimento reduzido */
+.no-tr *, .no-tr { transition: none !important; }
+.rm *, .rm { transition-duration: 0s !important; }
+.rm .tape-track { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .phone * { transition-duration: 0s !important; }
+  .tape-track { animation: none !important; }
+}
+</style>
+
+<main class="page">
+  <header class="intro">
+    <p class="eyebrow">MedControl · Proposta de movimento · Revisão 1 · Outubro 2026</p>
+    <h1>Mecânica de <span>precisão</span></h1>
+    <p class="lede">Maquete funcional dos oito movimentos aprovados. O protótipo ao lado roda de verdade: toque nos botões do app ou use os comandos de cada movimento. O tempo é simulado, então dá para avançar o relógio sem esperar.</p>
+    <ul class="swatches" aria-label="Paleta">
+      <li><i style="background:#EFEBE3"></i>Papel</li>
+      <li><i style="background:#121210"></i>Tinta</li>
+      <li><i style="background:#C8F031"></i>Liberado</li>
+      <li><i style="background:#FF3B1F"></i>Alarme</li>
+    </ul>
+  </header>
+
+  <div class="stage">
+    <div class="stage-phone" id="phone-col">
+      <div class="controls">
+        <button class="ctl" type="button" id="c-reset">Reiniciar cenário</button>
+        <button class="ctl" type="button" id="c-rm" aria-pressed="false">Movimento reduzido</button>
+        <button class="ctl" type="button" id="c-theme">Tema: sistema</button>
+      </div>
+
+      <div class="device">
+        <div class="screen phone no-tr" id="phone">
+          <div class="toasts" id="toasts" aria-live="polite"></div>
+
+          <header class="topbar">
+            <div class="brand">
+              <svg width="26" height="15" viewBox="0 0 26 15" aria-hidden="true">
+                <rect x="0.75" y="0.75" width="12" height="13.5" style="fill:var(--ink);stroke:var(--ink)" stroke-width="1.5"/>
+                <rect x="13.25" y="0.75" width="12" height="13.5" style="fill:var(--lime);stroke:var(--ink)" stroke-width="1.5"/>
+              </svg>
+              <span>MedControl</span>
+            </div>
+            <div class="tb-right">
+              <span class="tb-clock"><span id="tb-date"></span><span class="roll" id="tb-time"></span></span>
+              <button class="icon-btn" type="button" id="btn-settings" aria-label="Ajustes">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+                  <path d="M3 7h11M19 7h2M3 17h3M11 17h10"/><rect x="14" y="4.5" width="5" height="5"/><rect x="6" y="14.5" width="5" height="5"/>
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="scroller" id="scroller">
+            <section id="v-rem">
+              <div class="list-head"><span>Remédios</span><span id="summary"></span></div>
+              <div class="list" id="list"></div>
+            </section>
+            <section id="v-est" hidden>
+              <div class="list-head"><span>Estoque</span><span>Duração estimada</span></div>
+              <div id="stock"></div>
+            </section>
+            <section id="v-his" hidden>
+              <div class="list-head"><span>Histórico</span><span>Livro de doses</span></div>
+              <div id="ledger"></div>
+            </section>
+          </div>
+
+          <nav class="bbar">
+            <div class="tabs" role="tablist" aria-label="Seções">
+              <button class="tab" role="tab" type="button" data-tab="rem" aria-selected="true">Remédios</button>
+              <button class="tab" role="tab" type="button" data-tab="est" aria-selected="false">Estoque</button>
+              <button class="tab" role="tab" type="button" data-tab="his" aria-selected="false">Histórico</button>
+              <i class="ind" id="ind" aria-hidden="true"></i>
+            </div>
+            <button class="add" type="button" id="btn-add" aria-label="Novo remédio">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg>
+            </button>
+          </nav>
+
+          <div class="sheet-wrap" id="sheet-wrap" hidden>
+            <div class="backdrop" id="backdrop"></div>
+            <form class="sheet" id="sheet" aria-labelledby="sheet-title">
+              <h2 id="sheet-title">Novo remédio</h2>
+              <div class="field"><label for="f-nome">Nome do remédio</label><input id="f-nome" type="text" placeholder="Ex.: Losartana" autocomplete="off"></div>
+              <div class="two">
+                <div class="field"><label for="f-dose">Dose</label><input id="f-dose" type="text" placeholder="Ex.: 50mg" autocomplete="off"></div>
+                <div class="field"><label for="f-int">Intervalo (h)</label><input id="f-int" type="number" placeholder="Ex.: 8"></div>
+              </div>
+              <div class="two">
+                <div class="field"><label for="f-comp">Comp. por dose</label><input id="f-comp" type="text" inputmode="decimal" placeholder="Ex.: 1,5"></div>
+                <div class="field"><label for="f-est">Estoque</label><input id="f-est" type="number" placeholder="Ex.: 30"></div>
+              </div>
+              <button class="link-btn" type="button" id="f-del" hidden>Excluir este remédio</button>
+              <div class="sheet-actions">
+                <button class="btn" type="button" id="f-cancel">Cancelar</button>
+                <button class="btn primary" type="submit">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Toque no nome de um remédio para editar. Excluir fica dentro da edição. Símbolo da marca provisório até a arte final.</p>
+    </div>
+
+    <section class="moves" aria-label="Movimentos">
+      <h2>Os oito movimentos</h2>
+      <p>Cada um responde a uma pergunta: o que mudou, quanto falta, ou se a dose foi registrada. A numeração segue o pitch aprovado.</p>
+      <ol class="move-list">
+        <li class="move"><span class="move-num">01</span><div><h3>Linha de intervalo</h3><p>A linha no topo do card se preenche conforme o intervalo passa. Mostra quanto falta sem precisar ler o número.</p><span class="spec">Contínuo · linear</span></div><button class="play" type="button" data-demo="gauge">Avançar 30 min</button></li>
+        <li class="move"><span class="move-num">02</span><div><h3>Dígitos de painel</h3><p>Só o dígito que mudou gira, como num painel de embarque. O relógio do topo usa o mesmo rolete.</p><span class="spec">280 ms · padrão</span></div><button class="play" type="button" data-demo="digits">Avançar 1 min</button></li>
+        <li class="move"><span class="move-num">03</span><div><h3>Liberação</h3><p>As linhas diagonais deslizam para fora e revelam o bloco lima. A contagem rola até AGORA e o botão de segurar vira Tomei agora.</p><span class="spec">600 ms · pesada</span></div><button class="play" type="button" data-demo="release">Liberar Metformina</button></li>
+        <li class="move"><span class="move-num">04</span><div><h3>Carimbo</h3><p>Tomei agora carimba a hora sobre o card: o botão afunda, o carimbo assenta com um impacto seco e a tinta absorve. No Android, vibração de 12 ms.</p><span class="spec">80 + 260 + 600 ms · carimbo</span></div><button class="play" type="button" data-demo="stamp">Tomar Losartana</button></li>
+        <li class="move"><span class="move-num">05</span><div><h3>Segurar para confirmar</h3><p>Antecipar uma dose pede 1,5 s de pressão no botão. Soltar antes faz a tinta recuar três vezes mais rápido. A simulação solta no meio do caminho; no app, segure até o fim.</p><span class="spec">1500 ms · linear</span></div><button class="play" type="button" data-demo="hold">Simular toque curto</button></li>
+        <li class="move"><span class="move-num">06</span><div><h3>Fita de advertência</h3><p>Mais de 24 h de atraso ganha uma fita vermelha que corre devagar. É o único movimento em loop do app.</p><span class="spec">40 px/s · contínuo</span></div><button class="play" type="button" data-demo="tape">Ver Sertralina</button></li>
+        <li class="move"><span class="move-num">07</span><div><h3>Reordenação</h3><p>Quando um card muda de urgência, ele desliza até a nova posição. A ordem por urgência se explica sozinha.</p><span class="spec">320 ms · padrão</span></div><button class="play" type="button" data-demo="reorder">Tomar Sertralina</button></li>
+        <li class="move"><span class="move-num">08</span><div><h3>Impressora</h3><p>O estoque desce rolando pelo valor da dose e o registro novo é impresso no topo do Histórico, empurrando o resto para baixo.</p><span class="spec">240 ms · padrão</span></div><button class="play" type="button" data-demo="printer">Registrar e abrir histórico</button></li>
+      </ol>
+
+      <h2>Interface</h2>
+      <ol class="move-list">
+        <li class="move"><span class="move-num">A</span><div><h3>Abas</h3><p>O traço sobre a aba ativa desliza até a nova seção e o conteúdo entra com 8 px de deslocamento.</p><span class="spec">320 ms traço · 200 ms conteúdo</span></div><button class="play" type="button" data-demo="tabs">Trocar abas</button></li>
+        <li class="move"><span class="move-num">B</span><div><h3>Janela de cadastro</h3><p>Sobe de baixo em 320 ms e sai em 200 ms. Sair é sempre mais rápido que entrar.</p><span class="spec">320 / 200 ms</span></div><button class="play" type="button" data-demo="sheet">Abrir cadastro</button></li>
+        <li class="move"><span class="move-num">C</span><div><h3>Aviso</h3><p>Uma tira estreita é ejetada do topo da tela, como uma etiqueta saindo da impressora.</p><span class="spec">200 ms · fica 2,4 s</span></div><button class="play" type="button" data-demo="toast">Mostrar aviso</button></li>
+        <li class="move"><span class="move-num">D</span><div><h3>Abertura</h3><p>Os cards entram em sequência, 40 ms entre cada um, uma vez por sessão.</p><span class="spec">320 ms · 40 ms de intervalo</span></div><button class="play" type="button" data-demo="intro">Repetir abertura</button></li>
+      </ol>
+
+      <h2>Especificação</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Curva</th><th>Valor</th><th>Onde</th></tr></thead>
+          <tbody>
+            <tr><td>Padrão</td><td>cubic-bezier(0.2, 0, 0, 1)</td><td>Roletes, abas, janelas, reordenação, impressão</td></tr>
+            <tr><td>Carimbo</td><td>cubic-bezier(0.3, 1.4, 0.5, 1)</td><td>Só o carimbo de dose</td></tr>
+            <tr><td>Pesada</td><td>cubic-bezier(0.7, 0, 0.2, 1)</td><td>Só a liberação</td></tr>
+            <tr><td>Saída</td><td>cubic-bezier(0.4, 0, 1, 1)</td><td>Fechar janela, recolher aviso</td></tr>
+            <tr><td>Linear</td><td>linear</td><td>Linha de intervalo, segurar para confirmar, fita</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Escala de duração: 80, 200, 240, 280, 320 e 600 ms. Nada fora dela.</p>
+
+      <h2>Regras</h2>
+      <ul class="rules">
+        <li><b>Movimento reduzido.</b> Ative o botão acima do aparelho para ver: os estados mudam na hora com um leve esmaecimento, a fita fica parada e o carimbo aparece já assentado.</li>
+        <li><b>Nada depende só do movimento.</b> Todo estado animado também está escrito no card.</li>
+        <li><b>Um loop só.</b> Fora do atraso crítico, o app fica parado quando está tudo bem.</li>
+        <li><b>Leve.</b> Só deslocamento, escala, opacidade e recorte. CSS e as animações nativas do navegador, sem bibliotecas, para manter o app offline.</li>
+      </ul>
+
+      <p class="foot">Nota para a execução: a maquete carrega Archivo e IBM Plex Mono do Google Fonts. No app, as duas fontes precisam ser salvas em assets e entrar no cache do service worker. Dados, horários e remédios são de exemplo.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const STD = 'cubic-bezier(0.2,0,0,1)', STAMP = 'cubic-bezier(0.3,1.4,0.5,1)', EXIT = 'cubic-bezier(0.4,0,1,1)';
+  const H = 3600e3, M = 60e3;
+  const phone = $('#phone'), scroller = $('#scroller'), list = $('#list');
+  const mq = matchMedia('(prefers-reduced-motion: reduce)');
+  let rmForced = false;
+  const reduced = () => rmForced || mq.matches;
+
+  let offset = 0;
+  const now = () => new Date(Date.now() + offset);
+  const pad = (n) => String(n).padStart(2, '0');
+  const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const MON = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  function dayLabel(d) {
+    const n = now(); const y = new Date(n); y.setDate(n.getDate() - 1);
+    if (dayKey(d) === dayKey(n)) return 'Hoje';
+    if (dayKey(d) === dayKey(y)) return 'Ontem';
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+  }
+  const when = (d) => (dayLabel(d) === 'Hoje' ? hhmm(d) : `${dayLabel(d)} ${hhmm(d)}`);
+  const fmt = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
+
+  let meds = [], hist = [], hid = 0, tab = 'rem', lastMin = -1;
+  const cards = {};
+  const byId = (id) => meds.find((m) => m.id === id);
+
+  function seed() {
+    const t = now().getTime();
+    meds = [
+      { id: 'los', nome: 'Losartana', dose: '50mg', comp: 1, int: 12, last: t - 13 * H, stock: 24 },
+      { id: 'met', nome: 'Metformina', dose: '850mg', comp: 1, int: 8, last: t - (8 * H - 161 * M), stock: 31 },
+      { id: 'ser', nome: 'Sertralina', dose: '50mg', comp: 1.5, int: 6, last: t - 40 * H, stock: 10 },
+    ];
+    const [L, Mt, S] = meds;
+    hist = [
+      { med: 'met', t: Mt.last }, { med: 'los', t: L.last }, { med: 'met', t: Mt.last - 8 * H },
+      { med: 'met', t: Mt.last - 15 * H, forced: true }, { med: 'los', t: L.last - 12 * H },
+      { med: 'ser', t: S.last }, { med: 'ser', t: S.last - 6 * H },
+    ].map((h) => ({ ...h, id: ++hid }));
+  }
+
+  function status(m) {
+    const n = now().getTime(), I = m.int * H, el = n - m.last, avail = m.last + I;
+    if (el >= I + 24 * H) return { k: 'crit', atraso: el - I, avail };
+    if (el >= I) return { k: 'ok', avail };
+    return { k: 'wait', rest: I - el, p: el / I, avail };
+  }
+  function sorted() {
+    const rk = { crit: 0, ok: 1, wait: 2 };
+    return meds.map((m) => ({ m, s: status(m) })).sort((a, b) =>
+      rk[a.s.k] - rk[b.s.k] ||
+      (a.s.k === 'wait' ? a.s.rest - b.s.rest : a.s.k === 'crit' ? b.s.atraso - a.s.atraso : a.m.nome.localeCompare(b.m.nome))
+    ).map((x) => x.m);
+  }
+
+  /* Rolete: só o caractere que mudou gira */
+  function slot(ch) {
+    const s = document.createElement('span'); s.className = 's'; s.dataset.c = ch; s.setAttribute('aria-hidden', 'true');
+    const i = document.createElement('span'); i.textContent = ch === ' ' ? ' ' : ch; s.appendChild(i);
+    return s;
+  }
+  function roll(el, text, animate = true) {
+    const prev = el._t;
+    if (prev === text) return;
+    el._t = text; el.setAttribute('aria-label', text);
+    if (!animate || prev === undefined || reduced()) {
+      el.textContent = '';
+      for (const ch of text) el.appendChild(slot(ch));
+      if (animate && prev !== undefined) el.animate([{ opacity: 0.25 }, { opacity: 1 }], { duration: 160 });
+      return;
+    }
+    const slots = [...el.children];
+    const chars = [...text];
+    while (slots.length < chars.length) { const s = slot(''); s.firstChild.textContent = ''; el.appendChild(s); slots.push(s); }
+    while (slots.length > chars.length) slots.pop().remove();
+    let k = 0;
+    chars.forEach((ch, i) => {
+      const s = slots[i];
+      if (s.dataset.c === ch) return;
+      s.dataset.c = ch;
+      const old = s.firstChild;
+      const nw = document.createElement('span'); nw.textContent = ch === ' ' ? ' ' : ch;
+      s.appendChild(nw);
+      const delay = k++ * 30;
+      if (old) {
+        Object.assign(old.style, { position: 'absolute', left: '0', top: '0' });
+        old.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-105%)' }],
+          { duration: 280, delay, easing: STD, fill: 'forwards' }).onfinish = () => old.remove();
+      }
+      nw.animate([{ transform: 'translateY(105%)' }, { transform: 'translateY(0)' }],
+        { duration: 280, delay, easing: STD, fill: 'backwards' });
+    });
+  }
+
+  function withoutTransitions(fn) {
+    phone.classList.add('no-tr');
+    fn();
+    void phone.offsetHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => phone.classList.remove('no-tr')));
+  }
+
+  function buildCard(m) {
+    const c = document.createElement('article');
+    c.className = 'card'; c.dataset.id = m.id;
+    c.innerHTML = `
+      <div class="card-top"><div class="gauge" aria-hidden="true"><i></i></div><div class="tape" aria-hidden="true" hidden><div class="tape-track"></div></div></div>
+      <div class="card-head"><button class="name" type="button"></button><span class="meta"></span></div>
+      <div class="hero">
+        <div class="hero-base"></div><div class="hero-hatch"></div>
+        <div class="hero-content"><span class="hero-label"></span><span class="clock roll"></span><span class="hero-aside"></span></div>
+        <div class="stamp" aria-hidden="true" hidden></div>
+      </div>
+      <p class="warn" hidden></p>
+      <dl class="facts">
+        <div><dt>Última dose</dt><dd class="f-last"></dd></div>
+        <div><dt>Estoque</dt><dd><span class="roll f-stock"></span><span class="unit">comp.</span><span class="short" hidden>Insuficiente</span></dd></div>
+      </dl>
+      <div class="action"></div>`;
+    $('.name', c).addEventListener('click', () => openSheet(byId(c.dataset.id)));
+    cards[m.id] = c;
+    return c;
+  }
+
+  function updateCard(m, animate) {
+    const c = cards[m.id], s = status(m), prev = c.dataset.k;
+    c.dataset.k = s.k;
+    c.classList.remove('k-ok', 'k-wait', 'k-crit'); c.classList.add('k-' + s.k);
+
+    $('.name', c).textContent = m.nome;
+    $('.meta', c).textContent = `${m.dose} · ${fmt(m.comp)} comp · a cada ${m.int}h`;
+    const label = $('.hero-label', c), aside = $('.hero-aside', c), clock = $('.clock', c);
+    const av = new Date(s.avail);
+    if (s.k === 'wait') {
+      const mins = Math.max(1, Math.ceil(s.rest / M));
+      label.textContent = 'Faltam'; aside.textContent = `Libera às ${hhmm(av)}`;
+      roll(clock, `${Math.floor(mins / 60)}:${pad(mins % 60)}`, animate);
+    } else if (s.k === 'ok') {
+      label.textContent = 'Liberado'; aside.textContent = `Desde ${when(av)}`;
+      roll(clock, 'Agora', animate);
+    } else {
+      label.textContent = 'Atrasado há'; aside.textContent = `Desde ${when(av)}`;
+      roll(clock, `${Math.floor(s.atraso / H)}h`, animate);
+    }
+    $('.gauge i', c).style.transform = `scaleX(${s.k === 'wait' ? s.p.toFixed(4) : 1})`;
+
+    const tape = $('.tape', c), warn = $('.warn', c);
+    tape.hidden = s.k !== 'crit'; warn.hidden = s.k !== 'crit';
+    if (s.k === 'crit') {
+      const hrs = Math.floor(s.atraso / H);
+      const txt = `Atrasado há ${hrs}h · Mais de 24h sem tomar ${m.nome} · `;
+      const track = $('.tape-track', c);
+      if (track.dataset.t !== txt) {
+        track.dataset.t = txt;
+        const half = txt.repeat(3);
+        track.innerHTML = '';
+        for (let i = 0; i < 2; i++) { const sp = document.createElement('span'); sp.textContent = half; sp.style.whiteSpace = 'pre'; track.appendChild(sp); }
+        requestAnimationFrame(() => { track.style.animationDuration = `${(track.scrollWidth / 2) / 40}s`; });
+      }
+      warn.innerHTML = '';
+      const b = document.createElement('b'); b.textContent = `Mais de 24h sem tomar ${m.nome}.`;
+      warn.append(b, ' Isso pode trazer consequências à sua saúde. Tome assim que possível ou procure orientação médica.');
+    }
+
+    $('.f-last', c).textContent = when(new Date(m.last));
+    roll($('.f-stock', c), fmt(m.stock), animate);
+    $('.short', c).hidden = m.stock >= m.comp;
+
+    setAction(c, s.k === 'wait' ? 'hold' : 'take', animate);
+
+    const released = prev === 'wait' && s.k !== 'wait';
+    if (released && animate && reduced()) $('.hero-content', c).animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 160 });
+    return released;
+  }
+
+  function setAction(c, kind, animate) {
+    if (c._kind === kind) return;
+    c._kind = kind;
+    const a = $('.action', c); a.innerHTML = '';
+    const id = c.dataset.id;
+    if (kind === 'take') {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'take'; b.textContent = 'Tomei agora';
+      b.addEventListener('click', () => take(byId(id), false));
+      a.appendChild(b); c._press = c._release = null;
+    } else {
+      const label = 'Segure para antecipar a dose';
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'hold';
+      b.setAttribute('aria-label', 'Segure por um segundo e meio para registrar a dose antes da hora');
+      b.innerHTML = `<span class="hold-base">${label}</span><span class="hold-fill" aria-hidden="true">${label}</span>`;
+      const fill = $('.hold-fill', b);
+      let an = null, done = false;
+      const press = () => {
+        if (done || c.busy) return;
+        if (!an) {
+          an = fill.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }], { duration: 1500, easing: 'linear', fill: 'both' });
+          an.onfinish = () => { if (an.playbackRate > 0 && !done) { done = true; take(byId(id), true); } };
+        } else { an.playbackRate = 1; an.play(); }
+      };
+      const release = () => {
+        if (!an || done || an.playState === 'finished') return;
+        an.playbackRate = -3; an.play();
+      };
+      b.addEventListener('pointerdown', (e) => { try { b.setPointerCapture(e.pointerId); } catch (_) {} press(); });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => b.addEventListener(ev, release));
+      b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(); } });
+      b.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') release(); });
+      b.addEventListener('contextmenu', (e) => e.preventDefault());
+      a.appendChild(b); c._press = press; c._release = release;
+    }
+    if (animate) a.firstChild.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: STD });
+  }
+
+  function reorder(animate = true) {
+    const order = sorted().map((m) => cards[m.id]);
+    const cur = [...list.children];
+    if (order.every((c, i) => cur[i] === c)) return;
+    const first = new Map(cur.map((c) => [c, c.getBoundingClientRect().top]));
+    order.forEach((c) => list.appendChild(c));
+    if (!animate) return;
+    if (reduced()) { order.forEach((c) => c.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 200 })); return; }
+    order.forEach((c) => {
+      const dy = first.get(c) - c.getBoundingClientRect().top;
+      if (Math.abs(dy) > 1) c.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 320, easing: STD });
+    });
+  }
+
+  function summary() {
+    const crit = meds.filter((m) => status(m).k === 'crit').length;
+    $('#summary').innerHTML = `${meds.length} cadastrados${crit ? ` · <b>${crit} atrasado${crit > 1 ? 's' : ''}</b>` : ''}`;
+  }
+
+  function updateAll(animate) {
+    let released = false;
+    for (const m of meds) { if (cards[m.id].busy) continue; if (updateCard(m, animate)) released = true; }
+    summary();
+    if (tab === 'est') renderEst();
+    setTimeout(() => reorder(animate), released && animate && !reduced() ? 700 : 0);
+  }
+
+  function tick(force) {
+    const n = now(), mk = Math.floor(n.getTime() / M);
+    if (!force && mk === lastMin) return;
+    lastMin = mk;
+    $('#tb-date').textContent = `${DOW[n.getDay()]} ${pad(n.getDate())} ${MON[n.getMonth()]} ·`;
+    roll($('#tb-time'), hhmm(n), true);
+    updateAll(true);
+  }
+
+  /* Carimbo e registro */
+  function take(m, forced) {
+    const c = cards[m.id];
+    if (!c || c.busy) return;
+    c.busy = true;
+    const t = now();
+    const btn = $('.action button', c); if (btn) btn.disabled = true;
+    const st = $('.stamp', c);
+    st.textContent = `Tomado · ${hhmm(t)}`;
+    st.hidden = false;
+    if (reduced()) {
+      st.animate([{ opacity: 0 }, { opacity: 0.88 }], { duration: 120, fill: 'forwards' });
+    } else {
+      if (btn) btn.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(2px)' }, { transform: 'translateY(0)' }], { duration: 160, easing: STD });
+      st.animate([{ opacity: 0, transform: 'rotate(-4deg) scale(1.15)' }, { opacity: 1, transform: 'rotate(-4deg) scale(1)' }],
+        { duration: 260, delay: 80, easing: STAMP, fill: 'both' });
+      st.animate([{ opacity: 1 }, { opacity: 0.85 }], { duration: 600, delay: 340, easing: STD, fill: 'forwards' });
+      c.animate([{ transform: 'none' }, { transform: 'translateY(1px)' }, { transform: 'none' }], { duration: 140, delay: 260 });
+    }
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (_) {}
+
+    m.last = t.getTime();
+    m.stock = Math.max(0, Math.round((m.stock - m.comp) * 10) / 10);
+    hist.push({ id: ++hid, med: m.id, t: m.last, forced, fresh: true });
+    roll($('.f-stock', c), fmt(m.stock), true);
+    $('.short', c).hidden = m.stock >= m.comp;
+    toast(`Dose de ${m.nome} registrada · ${hhmm(t)}`);
+
+    setTimeout(() => {
+      c.busy = false;
+      updateCard(m, true);
+      summary();
+      const fade = st.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: reduced() ? 120 : 300, easing: EXIT, fill: 'forwards' });
+      fade.onfinish = () => { st.getAnimations().forEach((a) => a.cancel()); st.hidden = true; };
+      setTimeout(() => reorder(true), reduced() ? 0 : 380);
+    }, reduced() ? 900 : 1100);
+  }
+
+  /* Aviso */
+  function toast(text) {
+    const host = $('#toasts');
+    host.textContent = '';
+    const el = document.createElement('div'); el.className = 'toast'; el.textContent = text;
+    host.appendChild(el);
+    if (reduced()) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120 });
+    else el.animate([{ transform: 'translateY(-100%)' }, { transform: 'none' }], { duration: 200, easing: STD });
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => {
+      const kf = reduced() ? [{ opacity: 1 }, { opacity: 0 }] : [{ transform: 'none' }, { transform: 'translateY(-100%)' }];
+      el.animate(kf, { duration: 200, easing: EXIT, fill: 'forwards' }).onfinish = () => el.remove();
+    }, 2400);
+  }
+
+  /* Estoque e histórico */
+  function renderEst() {
+    const box = $('#stock'); box.innerHTML = '';
+    for (const m of [...meds].sort((a, b) => a.nome.localeCompare(b.nome))) {
+      const days = Math.floor(((m.stock / m.comp) * m.int) / 24);
+      const r = document.createElement('div'); r.className = 'e-row';
+      r.innerHTML = `<div class="e-info"><span class="e-name"></span><span class="e-meta"></span></div>
+        <div class="e-qty"><span class="e-num"></span><span class="e-unit">comp.</span></div><span class="e-days"></span>`;
+      $('.e-name', r).textContent = m.nome;
+      $('.e-meta', r).textContent = `${m.dose} · ${fmt(m.comp)} por dose`;
+      $('.e-num', r).textContent = fmt(m.stock);
+      const d = $('.e-days', r);
+      d.textContent = `Dura ${days} dia${days === 1 ? '' : 's'}${days <= 7 ? ' · Repor' : ''}`;
+      d.classList.toggle('low', days <= 7);
+      box.appendChild(r);
+    }
+  }
+  function renderHist() {
+    const box = $('#ledger'); box.innerHTML = '';
+    let lastDay = null; const fresh = [];
+    for (const h of [...hist].sort((a, b) => b.t - a.t)) {
+      const d = new Date(h.t), dk = dayKey(d);
+      if (dk !== lastDay) {
+        lastDay = dk;
+        const hd = document.createElement('div'); hd.className = 'day';
+        hd.textContent = `${dayLabel(d)} · ${DOW[d.getDay()]} ${pad(d.getDate())} ${MON[d.getMonth()]}`;
+        box.appendChild(hd);
+      }
+      const m = byId(h.med);
+      const r = document.createElement('div'); r.className = 'row';
+      r.innerHTML = '<span class="r-time"></span><span class="r-name"></span><span class="r-meta"></span>';
+      $('.r-time', r).textContent = hhmm(d);
+      $('.r-name', r).textContent = m ? m.nome : 'Remédio removido';
+      if (h.forced) { const b = document.createElement('span'); b.className = 'forced'; b.textContent = 'Antes da hora'; $('.r-name', r).appendChild(b); }
+      $('.r-meta', r).textContent = m ? `${m.dose} · ${fmt(m.comp)} comp` : '';
+      box.appendChild(r);
+      if (h.fresh) { fresh.push(r); h.fresh = false; }
+    }
+    if (fresh.length && !reduced()) {
+      const r = fresh[0], hgt = r.offsetHeight;
+      r.animate([{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }], { duration: 240, delay: 120, easing: STD, fill: 'backwards' });
+      for (let n = r.nextElementSibling; n; n = n.nextElementSibling) {
+        n.animate([{ transform: `translateY(${-hgt}px)` }, { transform: 'none' }], { duration: 240, delay: 120, easing: STD, fill: 'backwards' });
+      }
+    }
+  }
+
+  /* Abas */
+  const tabBtns = [...document.querySelectorAll('.tab')];
+  function placeInd() {
+    const b = tabBtns.find((x) => x.dataset.tab === tab);
+    const ind = $('#ind'); ind.style.width = b.offsetWidth + 'px'; ind.style.transform = `translateX(${b.offsetLeft}px)`;
+  }
+  function switchTab(t) {
+    if (t === tab) return;
+    tab = t;
+    tabBtns.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+    ['rem', 'est', 'his'].forEach((k) => { $('#v-' + k).hidden = k !== t; });
+    placeInd();
+    scroller.scrollTop = 0;
+    const v = $('#v-' + t);
+    if (reduced()) v.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120 });
+    else v.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: STD });
+    if (t === 'est') renderEst();
+    if (t === 'his') renderHist();
+  }
+  tabBtns.forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  const toRem = () => { if (tab !== 'rem') switchTab('rem'); };
+
+  /* Janela */
+  const wrap = $('#sheet-wrap'), sheet = $('#sheet'), back = $('#backdrop');
+  function openSheet(m) {
+    $('#sheet-title').textContent = m ? 'Editar remédio' : 'Novo remédio';
+    $('#f-nome').value = m ? m.nome : '';
+    $('#f-dose').value = m ? m.dose : '';
+    $('#f-int').value = m ? m.int : '';
+    $('#f-comp').value = m ? fmt(m.comp) : '';
+    $('#f-est').value = m ? m.stock : '';
+    $('#f-del').hidden = !m;
+    wrap.hidden = false;
+    if (reduced()) { wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120 }); return; }
+    back.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: STD });
+    sheet.animate([{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 320, easing: STD });
+  }
+  function closeSheet(after) {
+    if (wrap.hidden) return;
+    const done = () => { [sheet, back, wrap].forEach((e) => e.getAnimations().forEach((a) => a.cancel())); wrap.hidden = true; if (after) after(); };
+    if (reduced()) { done(); return; }
+    back.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: EXIT, fill: 'forwards' });
+    sheet.animate([{ transform: 'none' }, { transform: 'translateY(100%)' }], { duration: 200, easing: EXIT, fill: 'forwards' }).onfinish = done;
+  }
+  $('#btn-add').addEventListener('click', () => openSheet(null));
+  $('#f-cancel').addEventListener('click', () => closeSheet());
+  back.addEventListener('click', () => closeSheet());
+  $('#f-del').addEventListener('click', () => closeSheet(() => toast('Excluir fica desativado na maquete')));
+  sheet.addEventListener('submit', (e) => { e.preventDefault(); closeSheet(() => toast('Remédio salvo')); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+  $('#btn-settings').addEventListener('click', () => toast('Ajustes ficam fora desta maquete'));
+
+  /* Abertura */
+  function intro() {
+    if (reduced()) return;
+    [...list.children].forEach((c, i) => c.animate(
+      [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 320, delay: i * 40, easing: STD, fill: 'backwards' }));
+  }
+
+  function reset() {
+    seed();
+    withoutTransitions(() => {
+      for (const m of meds) {
+        const c = cards[m.id];
+        c.busy = false; c._kind = null;
+        c.getAnimations({ subtree: true }).forEach((a) => { if (!(a instanceof CSSAnimation) && !(a instanceof CSSTransition)) a.cancel(); });
+        $('.stamp', c).hidden = true;
+        updateCard(m, false);
+      }
+      reorder(false);
+      summary();
+    });
+    if (tab === 'est') renderEst();
+    if (tab === 'his') renderHist();
+    lastMin = Math.floor(now().getTime() / M);
+  }
+
+  function focusCard(id) {
+    const c = cards[id];
+    scroller.scrollTo({ top: Math.max(0, c.offsetTop - 12), behavior: reduced() ? 'auto' : 'smooth' });
+    if (innerWidth < 960) {
+      const r = $('#phone-col').getBoundingClientRect();
+      if (r.top < -40 || r.top > innerHeight * 0.5) $('#phone-col').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+
+  const demos = {
+    gauge() { toRem(); focusCard('met'); offset += 30 * M; tick(true); },
+    digits() { toRem(); focusCard('met'); offset += M; tick(true); },
+    release() {
+      toRem();
+      if (status(byId('met')).k !== 'wait' || cards.met.busy) reset();
+      focusCard('met');
+      setTimeout(() => { offset += status(byId('met')).rest + 500; tick(true); }, 450);
+    },
+    stamp() {
+      toRem();
+      if (status(byId('los')).k !== 'ok' || cards.los.busy) reset();
+      focusCard('los');
+      setTimeout(() => take(byId('los'), false), 450);
+    },
+    hold() {
+      toRem();
+      let m = meds.find((x) => status(x).k === 'wait' && !cards[x.id].busy);
+      if (!m) { reset(); m = byId('met'); }
+      focusCard(m.id);
+      setTimeout(() => { const c = cards[m.id]; if (c._press) { c._press(); setTimeout(() => c._release && c._release(), 850); } }, 450);
+    },
+    tape() { toRem(); if (status(byId('ser')).k !== 'crit') reset(); focusCard('ser'); },
+    reorder() {
+      toRem();
+      if (status(byId('ser')).k !== 'crit' || cards.ser.busy) reset();
+      focusCard('ser');
+      setTimeout(() => take(byId('ser'), false), 450);
+    },
+    printer() {
+      toRem();
+      let m = meds.find((x) => status(x).k !== 'wait' && !cards[x.id].busy);
+      if (!m) { reset(); m = byId('los'); }
+      focusCard(m.id);
+      setTimeout(() => { take(m, false); setTimeout(() => switchTab('his'), 1900); }, 450);
+    },
+    tabs() { ['est', 'his', 'rem'].forEach((t, i) => setTimeout(() => switchTab(t), i * 1000)); },
+    sheet() { toRem(); openSheet(null); },
+    toast() { toast('Backup exportado'); },
+    intro() { toRem(); scroller.scrollTo({ top: 0 }); intro(); },
+  };
+  document.querySelectorAll('[data-demo]').forEach((b) => b.addEventListener('click', () => {
+    if (!wrap.hidden && b.dataset.demo !== 'sheet') closeSheet();
+    demos[b.dataset.demo]();
+  }));
+
+  $('#c-reset').addEventListener('click', () => { closeSheet(); offset = 0; reset(); tick(true); toRem(); scroller.scrollTo({ top: 0 }); });
+  $('#c-rm').addEventListener('click', (e) => {
+    rmForced = !rmForced;
+    phone.classList.toggle('rm', rmForced);
+    e.currentTarget.setAttribute('aria-pressed', String(rmForced));
+  });
+  const themes = [null, 'light', 'dark'], themeNames = ['sistema', 'claro', 'escuro'];
+  let ti = 0;
+  $('#c-theme').addEventListener('click', (e) => {
+    ti = (ti + 1) % 3;
+    if (themes[ti]) document.documentElement.dataset.theme = themes[ti]; else delete document.documentElement.dataset.theme;
+    e.currentTarget.textContent = `Tema: ${themeNames[ti]}`;
+  });
+
+  /* Montagem */
+  seed();
+  for (const m of meds) { list.appendChild(buildCard(m)); updateCard(m, false); }
+  reorder(false);
+  summary();
+  tick(true);
+  placeInd();
+  requestAnimationFrame(() => requestAnimationFrame(() => phone.classList.remove('no-tr')));
+  intro();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeInd);
+  addEventListener('resize', placeInd);
+  setInterval(() => tick(false), 1000);
+})();
+</script>
+
+</body>
+</html>

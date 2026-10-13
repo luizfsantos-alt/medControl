@@ -34,17 +34,22 @@ Qualquer servidor estático serve: `npx serve`, `php -S localhost:8000`, nginx.
 essa dose (aceita meios comprimidos, ex.: `1,5`), o intervalo mínimo entre
 doses em horas (ex.: `8`) e o estoque atual de comprimidos.
 
-**Tela principal.** Um card por remédio, com o status:
+**Tela principal.** Um card por remédio, ordenado por urgência (atrasados
+primeiro, depois liberados, depois os que ainda aguardam). O status aparece
+num bloco grande:
 
-- 🟢 **Pode tomar** — nenhuma dose registrada ainda, ou o intervalo já passou.
-- 🔴 **Próxima às HH:MM** — ainda dentro do intervalo, com o tempo restante e
-  o horário da última dose.
+- **Liberado** (bloco lima, "AGORA") — nenhuma dose registrada ainda, ou o
+  intervalo já passou.
+- **Faltam H:MM** (bloco hachurado) — ainda dentro do intervalo, com o
+  horário em que libera. A linha no topo do card se preenche conforme o
+  intervalo passa.
 
 **Alerta de dose muito atrasada.** Mais grave que tomar cedo demais é ficar
 mais de 24h sem tomar. Passado esse limite (contado a partir do momento em
-que a dose ficou disponível, não do horário da última dose), o status vira
-vermelho — "⚠ Atrasado há Xh" — e um aviso explícito aparece no card
-avisando que isso pode ter consequências negativas à saúde.
+que a dose ficou disponível, não do horário da última dose), o bloco vira
+vermelho — "Atrasado há Xh" —, uma fita de advertência corre no topo do
+card e um aviso explícito avisa que isso pode ter consequências negativas à
+saúde. O vermelho é usado só para isso.
 
 **Remédios de 1x ao dia.** Cadastrar um remédio com intervalo de **24h**
 muda o comportamento do card: em vez de contar a partir da última dose, o
@@ -54,25 +59,30 @@ app passa a considerar **8h** como o horário de referência da dose diária.
   — vale tanto antes quanto depois das 8h (quem toma cedo não fica
   bloqueado até o dia seguinte).
 - Depois das 8h, se a dose do dia ainda não foi registrada, o card mostra
-  **"⚠ Atrasado — passou das 8h"**. É só aviso: se já tiver passado das
-  12h de segurança, o botão continua liberado direto.
+  o selo **"Passou das 8h"**. É só aviso: se já tiver passado das 12h de
+  segurança, o botão continua liberado direto.
 - Se passar das 8h **e** ainda não tiverem completado 12h desde a última
-  dose, o botão vira "Registrar mesmo assim" com confirmação — mesma
-  barreira contra dose duplicada, só que medida pelas 12h em vez do
-  intervalo cadastrado.
+  dose, o botão vira "Segure para antecipar a dose" — mesma barreira
+  contra dose duplicada, só que medida pelas 12h em vez do intervalo
+  cadastrado.
 - O tempo desde a última dose continua aparecendo no card, mas só como
   referência — quem decide o status agora são as 8h e as 12h.
 - O alerta de 24h acima continua valendo do mesmo jeito, contado a partir
   da última dose registrada.
 
-**"Tomei agora"** registra a dose na hora. Se o remédio ainda estiver dentro
-do intervalo, o botão vira **"Registrar mesmo assim"** e pede confirmação
-explícita antes de gravar — é a barreira contra dose duplicada por
-esquecimento, mas sem travar quem realmente precisa registrar fora do padrão
-(orientação médica pontual, por exemplo).
+**"Tomei agora"** registra a dose na hora e carimba o card com o horário.
+Se o remédio ainda estiver dentro do intervalo, o botão vira **"Segure para
+antecipar a dose"**: é preciso manter o dedo no botão por 1,5 segundo, e
+soltar antes cancela. O card mostra há quanto tempo foi a última dose e
+qual é o intervalo. É a barreira contra dose duplicada por esquecimento, mas
+sem travar quem realmente precisa registrar fora do padrão (orientação
+médica pontual, por exemplo).
 
-**Histórico.** Toda dose registrada, com data/hora e um aviso quando foi
-"forçada" (registrada dentro do intervalo). Dá para apagar um registro
+**Editar e excluir.** Tocar no nome do remédio abre a edição; o botão
+"Excluir este remédio" fica dentro dela.
+
+**Histórico.** Toda dose registrada, agrupada por dia, com o selo "Antes da
+hora" quando foi registrada dentro do intervalo. Dá para apagar um registro
 errado — a próxima dose permitida é recalculada a partir do que sobrar, e os
 comprimidos daquela dose voltam para o estoque.
 
@@ -81,7 +91,7 @@ quantidade de comprimidos daquela dose. Um aviso aparece quando o estoque não
 é mais suficiente para a próxima dose. O estoque pode ser corrigido de duas
 formas — o que for mais rápido no momento:
 
-- **Ajuste rápido** — o ícone 📦 no card abre um ajuste com botões `+`/`−`
+- **Ajuste rápido** — tocar em "Estoque" no card abre um ajuste com botões `+`/`−`
   (de meio em meio comprimido) e um campo numérico para digitar o valor
   exato, sem precisar abrir o formulário inteiro.
 - **Editar remédio** — o mesmo formulário de cadastro também atualiza o
@@ -141,13 +151,16 @@ index.html              shell da aplicação + resgate de emergência
 manifest.webmanifest    identidade do PWA
 sw.js                   service worker: network-first no código, cache nos assets
 css/
-  styles.css            estilos, safe-area, animações
+  styles.css            estilos, fontes locais, safe-area, temas claro e escuro
 js/
   app.js                lógica da aplicação: telas, remédios, histórico, backup
+  motion.js             sistema de movimento (roletes, carimbo, segurar, FLIP)
   state.js              persistência, backup automático, exportar/importar
-  ui.js                 toasts e modal de confirmação
+  ui.js                 avisos, sheets e modal de confirmação
   util.js               formatação de data/hora e duração
-assets/                 ícones PWA
+assets/                 ícones PWA, selo de notificação
+  fonts/                Archivo e IBM Plex Mono (woff2, OFL)
+docs/redesign/          briefing, maquete e arquivos-fonte da marca
 server/                 Worker opcional que manda o lembrete das 8h (Web Push)
 ```
 

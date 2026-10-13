@@ -1,4 +1,4 @@
-const VERSION = 'medcontrol-v1.4.0';
+const VERSION = 'medcontrol-v2.0.0';
 const NETWORK_TIMEOUT_MS = 2500;
 
 const PRECACHE = [
@@ -9,8 +9,21 @@ const PRECACHE = [
   'js/state.js',
   'js/ui.js',
   'js/util.js',
+  'js/motion.js',
   'assets/icon-192.png',
   'assets/icon-512.png',
+  'assets/apple-touch-icon.png',
+  'assets/badge-96.png',
+  'assets/fonts/archivo-var-latin-ext.woff2',
+  'assets/fonts/archivo-var-latin.woff2',
+  'assets/fonts/plex-mono-400-latin-ext.woff2',
+  'assets/fonts/plex-mono-400-latin.woff2',
+  'assets/fonts/plex-mono-500-latin-ext.woff2',
+  'assets/fonts/plex-mono-500-latin.woff2',
+  'assets/fonts/plex-mono-600-latin-ext.woff2',
+  'assets/fonts/plex-mono-600-latin.woff2',
+  'assets/fonts/plex-mono-700-latin-ext.woff2',
+  'assets/fonts/plex-mono-700-latin.woff2',
 ];
 
 const CODE_EXTENSIONS = ['.html', '.js', '.css', '.webmanifest'];
@@ -140,7 +153,7 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(payload.title || 'MedControl', {
       body: payload.body || '',
       icon: 'assets/icon-192.png',
-      badge: 'assets/icon-192.png',
+      badge: 'assets/badge-96.png',
       tag: 'medcontrol-lembrete-diario',
     }),
   );
