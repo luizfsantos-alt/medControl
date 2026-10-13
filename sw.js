@@ -1,4 +1,4 @@
-const VERSION = 'medcontrol-v2.0.0';
+const VERSION = 'medcontrol-v2.0.1';
 const NETWORK_TIMEOUT_MS = 2500;
 
 const PRECACHE = [
@@ -10,9 +10,9 @@ const PRECACHE = [
   'js/ui.js',
   'js/util.js',
   'js/motion.js',
-  'assets/icon-192.png',
-  'assets/icon-512.png',
-  'assets/apple-touch-icon.png',
+  'assets/icon-v2-192.png',
+  'assets/icon-v2-512.png',
+  'assets/apple-touch-icon-v2.png',
   'assets/badge-96.png',
   'assets/fonts/archivo-var-latin-ext.woff2',
   'assets/fonts/archivo-var-latin.woff2',
@@ -152,7 +152,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'MedControl', {
       body: payload.body || '',
-      icon: 'assets/icon-192.png',
+      icon: 'assets/icon-v2-192.png',
       badge: 'assets/badge-96.png',
       tag: 'medcontrol-lembrete-diario',
     }),
