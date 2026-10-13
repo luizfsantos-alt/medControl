@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>MedControl</title>
 <meta name="description" content="Registre o uso dos seus remédios diários e evite tomar a mesma dose duas vezes." />
-<meta name="theme-color" content="#1e40af" />
+<meta name="theme-color" content="#EFEBE3" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="assets/icon-192.png" />
-<link rel="apple-touch-icon" href="assets/icon-192.png" />
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<link rel="preload" href="assets/fonts/archivo-var-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/plex-mono-600-latin.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="stylesheet" href="css/styles.css" />
 <script>
   // Saída de emergência: #/reset limpa cache + service worker + dados do app
@@ -45,60 +48,98 @@
 </script>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-ajustes" viewBox="0 0 24 24">
+    <path d="M3 7h11M19 7h2M3 17h3M11 17h10" /><rect x="14" y="4.5" width="5" height="5" /><rect x="6" y="14.5" width="5" height="5" />
+  </symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" /></symbol>
+  <symbol id="i-menos" viewBox="0 0 24 24"><path d="M4 12h16" /></symbol>
+  <symbol id="i-editar" viewBox="0 0 24 24"><path d="M4 20v-4L15.5 4.5l4 4L8 20H4zM13 7l4 4" /></symbol>
+  <symbol id="i-excluir" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></symbol>
+  <symbol id="i-seta" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></symbol>
+</svg>
+
 <div id="rescue-panel" hidden>
-  <p>O MedControl está demorando para abrir.</p>
-  <button id="rescue-clear">Limpar cache e tentar de novo</button>
+  <p class="rescue-title">O MedControl está demorando para abrir.</p>
+  <p class="rescue-text">Limpar o cache costuma resolver. Seus dados ficam guardados.</p>
+  <button type="button" class="btn primary" id="rescue-clear">Limpar cache e tentar de novo</button>
 </div>
 
-<div class="app">
+<div class="app no-tr" id="app">
   <header class="topbar">
-    <h1><img src="assets/icon-192.png" alt="" />MedControl</h1>
-    <button class="icon-btn" id="btn-config" title="Ajustes" aria-label="Ajustes">⚙</button>
+    <div class="brand">
+      <svg class="brand-mark" viewBox="-38 -38 76 76" aria-hidden="true" focusable="false">
+        <g transform="rotate(-45)">
+          <rect x="-34" y="-17" width="68" height="34" fill="none" stroke="currentColor" stroke-width="2" />
+          <rect x="-1" y="-17" width="2" height="34" fill="currentColor" />
+          <rect x="-31" y="-14" width="28" height="28" fill="#C8F031" />
+          <rect x="3" y="-14" width="28" height="28" fill="currentColor" />
+        </g>
+      </svg>
+      <h1>MedControl</h1>
+    </div>
+    <div class="topbar-right">
+      <p class="topbar-clock"><span id="relogio-data"></span><span class="roll" id="relogio-hora"></span></p>
+      <button class="icon-btn" id="btn-config" type="button" aria-label="Ajustes">
+        <svg class="icon" aria-hidden="true"><use href="#i-ajustes" /></svg>
+      </button>
+    </div>
   </header>
 
-  <nav class="tabs">
-    <button id="tab-medicamentos" class="active" type="button">Remédios</button>
-    <button id="tab-estoque" type="button">Estoque</button>
-    <button id="tab-historico" type="button">Histórico</button>
-  </nav>
-
-  <section id="view-medicamentos" class="view">
-    <div id="lista-medicamentos"></div>
+  <section id="view-medicamentos" class="view" role="tabpanel" aria-labelledby="tab-medicamentos">
+    <div class="list-head" id="head-medicamentos"><span>Remédios</span><span id="resumo-medicamentos"></span></div>
+    <div id="lista-medicamentos" class="lista-cards"></div>
     <div id="empty-medicamentos" class="empty-state" hidden>
-      <p>💊</p>
-      <p>Nenhum remédio cadastrado ainda.</p>
-      <p>Toque no + para adicionar o primeiro.</p>
+      <div class="empty-ghost" aria-hidden="true"></div>
+      <h2>Nenhum remédio ainda</h2>
+      <p>Cadastre o primeiro para começar a registrar as doses.</p>
+      <button type="button" class="btn primary" data-action="novo">Adicionar remédio</button>
     </div>
   </section>
 
-  <section id="view-estoque" class="view" hidden>
+  <section id="view-estoque" class="view" role="tabpanel" aria-labelledby="tab-estoque" hidden>
+    <div class="list-head" id="head-estoque"><span>Estoque</span><span>Duração estimada</span></div>
     <div id="lista-estoque"></div>
     <div id="empty-estoque" class="empty-state" hidden>
-      <p>📦</p>
-      <p>Nenhum remédio cadastrado ainda.</p>
-      <p>Cadastre um remédio na aba Remédios para controlar o estoque dele aqui.</p>
+      <div class="empty-ghost" aria-hidden="true"></div>
+      <h2>Nada em estoque ainda</h2>
+      <p>O estoque de cada remédio aparece aqui depois do cadastro.</p>
+      <button type="button" class="btn primary" data-action="novo">Adicionar remédio</button>
     </div>
   </section>
 
-  <section id="view-historico" class="view" hidden>
+  <section id="view-historico" class="view" role="tabpanel" aria-labelledby="tab-historico" hidden>
+    <div class="list-head" id="head-historico"><span>Histórico</span><span>Livro de doses</span></div>
     <div id="lista-historico"></div>
     <div id="empty-historico" class="empty-state" hidden>
-      <p>🗒️</p>
-      <p>Nenhuma dose registrada ainda.</p>
+      <h2>Nenhuma dose registrada</h2>
+      <p>Cada dose tomada fica registrada aqui, com dia e hora.</p>
     </div>
   </section>
 </div>
 
-<button class="fab" id="btn-novo" title="Novo remédio" aria-label="Novo remédio">+</button>
+<nav class="bbar" aria-label="Seções">
+  <div class="bbar-inner">
+    <div class="tabs" role="tablist">
+      <button id="tab-medicamentos" class="tab" type="button" role="tab" aria-selected="true" aria-controls="view-medicamentos">Remédios</button>
+      <button id="tab-estoque" class="tab" type="button" role="tab" aria-selected="false" aria-controls="view-estoque">Estoque</button>
+      <button id="tab-historico" class="tab" type="button" role="tab" aria-selected="false" aria-controls="view-historico">Histórico</button>
+      <span class="tab-ind" id="tab-ind" aria-hidden="true"></span>
+    </div>
+    <button class="add-btn" id="btn-novo" type="button" aria-label="Novo remédio">
+      <svg class="icon icon-bold" aria-hidden="true"><use href="#i-mais" /></svg>
+    </button>
+  </div>
+</nav>
 
-<div id="update-banner" hidden>Nova versão disponível — toque para atualizar</div>
+<div id="update-banner" role="button" tabindex="0" hidden>Nova versão disponível · toque para atualizar</div>
 
-<div class="toast-stack" id="toast-stack"></div>
+<div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
 <!-- Modal: cadastrar/editar remédio -->
 <div class="overlay" id="modal-medicamento" hidden>
-  <div class="sheet">
-    <h2 id="med-modal-title">Novo remédio</h2>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="med-modal-title">
+    <h2 id="med-modal-title" tabindex="-1">Novo remédio</h2>
     <form id="form-medicamento">
       <input type="hidden" id="med-id" />
       <div class="field">
@@ -115,7 +156,7 @@
           <input type="number" id="med-intervalo" required min="0.5" max="72" step="0.5" placeholder="Ex.: 8" />
         </div>
       </div>
-      <p class="confirm-message">
+      <p class="hint">
         Intervalo de 24h é tratado como remédio de 1x ao dia: horário de
         referência às 8h, intervalo mínimo de 12h entre doses, e o app avisa
         se passar das 8h sem registrar a dose do dia.
@@ -130,8 +171,9 @@
           <input type="number" id="med-estoque" required min="0" max="100000" step="0.5" placeholder="Ex.: 30" />
         </div>
       </div>
+      <button type="button" class="link-btn" id="med-excluir" hidden>Excluir este remédio</button>
       <div class="sheet-actions">
-        <button type="button" class="btn" id="med-cancel">Cancelar</button>
+        <button type="button" class="btn" id="med-cancel" data-dismiss>Cancelar</button>
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
@@ -140,16 +182,21 @@
 
 <!-- Modal: ajuste rápido de estoque -->
 <div class="overlay" id="modal-estoque" hidden>
-  <div class="sheet">
-    <h2 id="estoque-modal-title">Ajustar estoque</h2>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="estoque-modal-title">
+    <h2 id="estoque-modal-title" tabindex="-1">Ajustar estoque</h2>
     <input type="hidden" id="estoque-med-id" />
+    <p class="sheet-sub">Comprimidos disponíveis</p>
     <div class="stepper">
-      <button type="button" class="icon-btn" id="estoque-menos" aria-label="Diminuir">−</button>
-      <input type="number" id="estoque-valor" min="0" max="100000" step="0.5" />
-      <button type="button" class="icon-btn" id="estoque-mais" aria-label="Aumentar">+</button>
+      <button type="button" class="icon-btn" id="estoque-menos" aria-label="Diminuir meio comprimido">
+        <svg class="icon icon-bold" aria-hidden="true"><use href="#i-menos" /></svg>
+      </button>
+      <input type="number" id="estoque-valor" min="0" max="100000" step="0.5" aria-label="Estoque em comprimidos" />
+      <button type="button" class="icon-btn" id="estoque-mais" aria-label="Aumentar meio comprimido">
+        <svg class="icon icon-bold" aria-hidden="true"><use href="#i-mais" /></svg>
+      </button>
     </div>
     <div class="sheet-actions">
-      <button type="button" class="btn" id="estoque-cancel">Cancelar</button>
+      <button type="button" class="btn" id="estoque-cancel" data-dismiss>Cancelar</button>
       <button type="button" class="btn primary" id="estoque-salvar">Salvar</button>
     </div>
   </div>
@@ -157,11 +204,11 @@
 
 <!-- Modal: confirmação genérica -->
 <div class="overlay" id="modal-confirm" hidden>
-  <div class="sheet">
-    <h2 id="confirm-title">Confirmar</h2>
+  <div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <h2 id="confirm-title" tabindex="-1">Confirmar</h2>
     <p class="confirm-message" id="confirm-message"></p>
     <div class="sheet-actions">
-      <button type="button" class="btn" id="confirm-cancel">Cancelar</button>
+      <button type="button" class="btn" id="confirm-cancel" data-dismiss>Cancelar</button>
       <button type="button" class="btn primary" id="confirm-ok">Confirmar</button>
     </div>
   </div>
@@ -169,8 +216,8 @@
 
 <!-- Modal: ajustes / backup -->
 <div class="overlay" id="modal-config" hidden>
-  <div class="sheet">
-    <h2>Ajustes</h2>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="config-title">
+    <h2 id="config-title" tabindex="-1">Ajustes</h2>
     <div class="settings-section">
       <h3>Backup</h3>
       <div class="sheet-actions">
@@ -188,7 +235,7 @@
     <div class="settings-section">
       <h3>Lembrete diário (8h)</h3>
       <p class="confirm-message">
-        Notificação enviada por um servidor próprio, todo dia às 8h — chega
+        Notificação enviada por um servidor próprio, todo dia às 8h. Chega
         mesmo com o app fechado. Veja <code>server/README.md</code> no
         repositório para publicar o seu.
       </p>
@@ -209,26 +256,26 @@
     <div class="settings-section">
       <h3>Zona de risco</h3>
       <div class="sheet-actions">
-        <button type="button" class="btn danger" id="btn-zerar">Apagar todos os dados</button>
+        <button type="button" class="btn" id="btn-zerar">Apagar todos os dados</button>
       </div>
     </div>
     <div class="sheet-actions">
-      <button type="button" class="btn primary" id="config-fechar">Fechar</button>
+      <button type="button" class="btn primary" id="config-fechar" data-dismiss>Fechar</button>
     </div>
   </div>
 </div>
 
 <!-- Modal: modo de importação -->
 <div class="overlay" id="modal-import-mode" hidden>
-  <div class="sheet">
-    <h2>Importar backup</h2>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="import-title">
+    <h2 id="import-title" tabindex="-1">Importar backup</h2>
     <p class="confirm-message">Como você quer aplicar este backup?</p>
     <div class="sheet-actions">
       <button type="button" class="btn" id="import-merge">Juntar</button>
-      <button type="button" class="btn danger" id="import-replace">Substituir tudo</button>
+      <button type="button" class="btn" id="import-replace">Substituir tudo</button>
     </div>
     <div class="sheet-actions">
-      <button type="button" class="btn" id="import-cancel">Cancelar</button>
+      <button type="button" class="btn" id="import-cancel" data-dismiss>Cancelar</button>
     </div>
   </div>
 </div>

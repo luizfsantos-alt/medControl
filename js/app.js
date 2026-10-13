@@ -12,8 +12,23 @@ import {
   formatDiasRestantes,
   urlBase64ToUint8Array,
 } from './util.js';
+import {
+  roll,
+  flip,
+  stamp,
+  unstamp,
+  holdToConfirm,
+  fadeIn,
+  enterView,
+  intro,
+  removeEl,
+  printRow,
+  ajustarFita,
+  prefersReduced,
+  onReducedChange,
+} from './motion.js';
 
-const VERSION = '1.4.0';
+const VERSION = '2.0.0';
 const ATRASO_CRITICO_MS = 24 * 3600000;
 const VAPID_PUBLIC_KEY = 'BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg';
 const PUSH_CONFIG_KEY = 'medcontrol_push_config_v1';
@@ -24,12 +39,20 @@ let notificacoesAtivas = false;
 let statusAnterior = new Map();
 
 const el = {
+  app: document.getElementById('app'),
   tabMedicamentos: document.getElementById('tab-medicamentos'),
   tabEstoque: document.getElementById('tab-estoque'),
   tabHistorico: document.getElementById('tab-historico'),
+  tabInd: document.getElementById('tab-ind'),
   viewMedicamentos: document.getElementById('view-medicamentos'),
   viewEstoque: document.getElementById('view-estoque'),
   viewHistorico: document.getElementById('view-historico'),
+  headMedicamentos: document.getElementById('head-medicamentos'),
+  headEstoque: document.getElementById('head-estoque'),
+  headHistorico: document.getElementById('head-historico'),
+  resumoMedicamentos: document.getElementById('resumo-medicamentos'),
+  relogioData: document.getElementById('relogio-data'),
+  relogioHora: document.getElementById('relogio-hora'),
   listaMedicamentos: document.getElementById('lista-medicamentos'),
   emptyMedicamentos: document.getElementById('empty-medicamentos'),
   listaEstoque: document.getElementById('lista-estoque'),
@@ -38,6 +61,7 @@ const el = {
   emptyHistorico: document.getElementById('empty-historico'),
   btnNovo: document.getElementById('btn-novo'),
   btnConfig: document.getElementById('btn-config'),
+  updateBanner: document.getElementById('update-banner'),
   modalMedicamento: document.getElementById('modal-medicamento'),
   formMedicamento: document.getElementById('form-medicamento'),
   medModalTitle: document.getElementById('med-modal-title'),
@@ -48,6 +72,7 @@ const el = {
   medComprimidos: document.getElementById('med-comprimidos'),
   medEstoque: document.getElementById('med-estoque'),
   medCancel: document.getElementById('med-cancel'),
+  medExcluir: document.getElementById('med-excluir'),
   modalEstoque: document.getElementById('modal-estoque'),
   estoqueModalTitle: document.getElementById('estoque-modal-title'),
   estoqueMedId: document.getElementById('estoque-med-id'),
@@ -145,188 +170,484 @@ function computeStatus(med, now) {
   };
 }
 
-function switchTab(tab) {
-  activeTab = tab;
-  el.tabMedicamentos.classList.toggle('active', tab === 'medicamentos');
-  el.tabEstoque.classList.toggle('active', tab === 'estoque');
-  el.tabHistorico.classList.toggle('active', tab === 'historico');
-  el.viewMedicamentos.hidden = tab !== 'medicamentos';
-  el.viewEstoque.hidden = tab !== 'estoque';
-  el.viewHistorico.hidden = tab !== 'historico';
-  el.btnNovo.hidden = tab !== 'medicamentos';
-  render();
+
+/* ==========================================================================
+   Apresentação. O visual segue docs/redesign/BRIEFING.md; a lógica de status
+   acima não muda.
+   ========================================================================== */
+
+const HORA_MS = 3600000;
+const MIN_MS = 60000;
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const RANK_ESTADO = { crit: 0, ok: 1, wait: 2 };
+const ATRASO_ORDEM_LIBERACAO_MS = 700;
+const ATRASO_ORDEM_CARIMBO_MS = 380;
+
+// Cards persistentes por id: atualizados no lugar para que as transições
+// de estado possam animar (o render roda a cada 15s).
+const cards = new Map();
+// Doses registradas nesta sessão que ainda não foram "impressas" no Histórico.
+const historicoNovo = new Set();
+let primeiraRenderizacao = true;
+let timerOrdem = null;
+
+const TABS = {
+  medicamentos: () => [el.tabMedicamentos, el.viewMedicamentos],
+  estoque: () => [el.tabEstoque, el.viewEstoque],
+  historico: () => [el.tabHistorico, el.viewHistorico],
+};
+
+function icone(id) {
+  return `<svg class="icon" aria-hidden="true"><use href="#${id}" /></svg>`;
 }
 
-function renderMedicamentos() {
-  const now = new Date();
-  const meds = [...state.medications].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  el.emptyMedicamentos.hidden = meds.length > 0;
-  el.listaMedicamentos.innerHTML = '';
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
 
+function numero(qtd) {
+  return roundToHalf(qtd).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+}
+
+function mesmoDia(a, b) {
+  return a.toDateString() === b.toDateString();
+}
+
+function deslocarDias(d, dias) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + dias);
+  return r;
+}
+
+// Forma curta para chips e dados: "Hoje 09:13", "Ontem 23:40", "Amanhã 08:00", "12/10 08:00".
+function diaHoraCurto(d, now) {
+  const hora = formatHora(d);
+  if (mesmoDia(d, now)) return `Hoje ${hora}`;
+  if (mesmoDia(d, deslocarDias(now, -1))) return `Ontem ${hora}`;
+  if (mesmoDia(d, deslocarDias(now, 1))) return `Amanhã ${hora}`;
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)} ${hora}`;
+}
+
+function rotuloDia(d, now) {
+  let prefixo = '';
+  if (mesmoDia(d, now)) prefixo = 'Hoje · ';
+  else if (mesmoDia(d, deslocarDias(now, -1))) prefixo = 'Ontem · ';
+  const ano = d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : '';
+  return `${prefixo}${DIAS_SEMANA[d.getDay()]} ${pad2(d.getDate())} ${MESES[d.getMonth()]}${ano}`;
+}
+
+// Traduz o status calculado em um dos três estados visuais (BRIEFING §4).
+function estadoVisual(med, status, now) {
+  if (status.atrasoCritico) {
+    const horas = Math.floor(status.atrasoMs / HORA_MS);
+    const relogio = horas >= 1 ? `${horas}h` : `${Math.max(1, Math.floor(status.atrasoMs / MIN_MS))}min`;
+    return {
+      k: 'crit',
+      label: 'Atrasado há',
+      relogio,
+      lado: `Desde ${diaHoraCurto(new Date(now.getTime() - status.atrasoMs), now)}`,
+      p: 1,
+    };
+  }
+  if (status.podeTomar) {
+    return {
+      k: 'ok',
+      label: 'Liberado',
+      relogio: 'Agora',
+      lado: med.ultimaTomada ? `Desde ${diaHoraCurto(status.proxima, now)}` : 'Primeira dose',
+      p: 1,
+    };
+  }
+  const minutos = Math.max(1, Math.ceil(status.restanteMs / MIN_MS));
+  const total = status.umaVezAoDia ? INTERVALO_SEGURANCA_1X_DIA_MS : med.intervaloHoras * HORA_MS;
+  const libera = mesmoDia(status.proxima, now) ? `às ${formatHora(status.proxima)}` : diaHoraCurto(status.proxima, now);
+  return {
+    k: 'wait',
+    label: 'Faltam',
+    relogio: `${Math.floor(minutos / 60)}:${pad2(minutos % 60)}`,
+    lado: `Libera ${libera}`,
+    p: Math.min(1, Math.max(0, 1 - status.restanteMs / total)),
+  };
+}
+
+// Urgência: atraso crítico (maior primeiro), liberados (alfabético),
+// aguardando (menor tempo restante primeiro).
+function chaveOrdem(med, status, vis) {
+  const valor = vis.k === 'crit' ? -status.atrasoMs : vis.k === 'wait' ? status.restanteMs : 0;
+  return { rank: RANK_ESTADO[vis.k], valor, nome: med.nome };
+}
+
+function compararCards(a, b) {
+  const ka = a._chave;
+  const kb = b._chave;
+  return ka.rank - kb.rank || ka.valor - kb.valor || ka.nome.localeCompare(kb.nome, 'pt-BR');
+}
+
+function criarCard(id) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.dataset.id = id;
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="gauge" aria-hidden="true"><i></i></div>
+      <div class="fita" aria-hidden="true" hidden><div class="fita-track"></div></div>
+    </div>
+    <div class="card-head">
+      <button class="card-name" type="button"></button>
+      <div class="card-meta"><span class="card-meta-txt"></span><span class="chip chip-8h" hidden>Passou das 8h</span></div>
+    </div>
+    <div class="hero">
+      <div class="hero-base"></div>
+      <div class="hero-hatch"></div>
+      <div class="hero-content">
+        <span class="hero-label"></span>
+        <span class="clock roll"></span>
+        <span class="hero-aside"></span>
+      </div>
+      <div class="stamp" aria-hidden="true" hidden></div>
+    </div>
+    <p class="alerta" hidden></p>
+    <div class="facts">
+      <div class="fact">
+        <span class="fact-k">Última dose</span>
+        <span class="fact-v fv-ultima"></span>
+      </div>
+      <button class="fact fact-btn" type="button">
+        <span class="fact-k"><span>Estoque</span>${icone('i-seta')}</span>
+        <span class="fact-v">
+          <span class="roll fv-estoque"></span><span class="fact-unit">comp.</span>
+          <span class="chip solid chip-insuf" hidden>Insuficiente</span>
+        </span>
+      </button>
+    </div>
+    <p class="contexto" hidden></p>
+    <div class="action"></div>
+  `;
+  const acharMed = () => state.medications.find((m) => m.id === id);
+  card.querySelector('.card-name').addEventListener('click', () => {
+    const med = acharMed();
+    if (med) abrirEdicao(med);
+  });
+  card.querySelector('.fact-btn').addEventListener('click', () => {
+    const med = acharMed();
+    if (med) abrirAjusteEstoque(med);
+  });
+  return card;
+}
+
+function definirAcao(card, tipo, animar) {
+  if (card._acao === tipo) return;
+  card._acao = tipo;
+  const id = card.dataset.id;
+  const box = card.querySelector('.action');
+  box.textContent = '';
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  if (tipo === 'take') {
+    botao.className = 'take-btn';
+    botao.textContent = 'Tomei agora';
+    botao.addEventListener('click', () => tomarMedicamento(id));
+  } else {
+    const rotulo = 'Segure para antecipar a dose';
+    botao.className = 'hold-btn';
+    botao.setAttribute('aria-label', 'Segure por um segundo e meio para registrar a dose antes da hora');
+    botao.innerHTML = '<span class="hold-base"></span><span class="hold-fill" aria-hidden="true"></span>';
+    botao.querySelector('.hold-base').textContent = rotulo;
+    botao.querySelector('.hold-fill').textContent = rotulo;
+    holdToConfirm(botao, () => tomarMedicamento(id, true));
+  }
+  box.appendChild(botao);
+  if (animar) fadeIn(botao);
+}
+
+function atualizarCard(card, med, status, now, animar) {
+  const vis = estadoVisual(med, status, now);
+  const anterior = card.dataset.k;
+  const q = (s) => card.querySelector(s);
+  card.dataset.k = vis.k;
+  card.classList.remove('k-ok', 'k-wait', 'k-crit');
+  card.classList.add(`k-${vis.k}`);
+
+  const comprimidos = med.comprimidosPorDose ?? 1;
+  const estoque = med.estoque ?? 0;
+  const freq = status.umaVezAoDia ? '1x ao dia · ref. 8h' : `a cada ${med.intervaloHoras}h`;
+  q('.card-name').textContent = med.nome;
+  q('.card-name').setAttribute('aria-label', `Editar ${med.nome}`);
+  q('.card-meta-txt').textContent = `${med.dose} · ${numero(comprimidos)} comp · ${freq}`;
+  q('.chip-8h').hidden = !(status.atrasado && !status.atrasoCritico);
+
+  q('.hero-label').textContent = vis.label;
+  q('.hero-aside').textContent = vis.lado;
+  roll(q('.clock'), vis.relogio, animar);
+  q('.gauge i').style.transform = `scaleX(${vis.p.toFixed(4)})`;
+
+  const fita = q('.fita');
+  const alerta = q('.alerta');
+  fita.hidden = vis.k !== 'crit';
+  alerta.hidden = vis.k !== 'crit';
+  if (vis.k === 'crit') {
+    const texto = `Atrasado há ${vis.relogio} · Mais de 24h sem tomar ${med.nome} · `;
+    const track = q('.fita-track');
+    if (track.dataset.t !== texto) {
+      track.dataset.t = texto;
+      track.textContent = '';
+      for (let i = 0; i < 2; i++) {
+        const metade = document.createElement('span');
+        metade.textContent = texto.repeat(3);
+        track.appendChild(metade);
+      }
+      requestAnimationFrame(() => ajustarFita(track));
+    }
+    alerta.textContent = '';
+    const titulo = document.createElement('b');
+    titulo.textContent = `Mais de 24h sem tomar ${med.nome}.`;
+    alerta.append(
+      titulo,
+      ' Ficar tanto tempo sem essa dose pode ter consequências negativas à sua saúde. Tome assim que possível ou busque orientação médica.',
+    );
+  }
+
+  q('.fv-ultima').textContent = med.ultimaTomada ? diaHoraCurto(new Date(med.ultimaTomada), now) : 'Nenhuma';
+  roll(q('.fv-estoque'), numero(estoque), animar);
+  q('.chip-insuf').hidden = estoque >= comprimidos;
+  q('.fact-btn').setAttribute('aria-label', `Ajustar estoque de ${med.nome}: ${formatComprimidos(estoque)}`);
+
+  const contexto = q('.contexto');
+  contexto.hidden = vis.k !== 'wait';
+  if (vis.k === 'wait') {
+    const intervalo = status.umaVezAoDia ? 'intervalo mínimo de 12h' : `intervalo de ${med.intervaloHoras}h`;
+    contexto.textContent = `Última dose há ${formatDuracao(now - new Date(med.ultimaTomada))} · ${intervalo}`;
+  }
+
+  definirAcao(card, vis.k === 'wait' ? 'hold' : 'take', animar);
+
+  const liberou = anterior === 'wait' && vis.k !== 'wait';
+  if (liberou && animar && prefersReduced()) fadeIn(q('.hero-content'), 160);
+  card._chave = chaveOrdem(med, status, vis);
+  return { vis, liberou };
+}
+
+function ordenarCards(animar) {
+  const ordem = [...cards.values()].sort(compararCards);
+  flip(el.listaMedicamentos, ordem, animar);
+}
+
+function agendarOrdem(atrasoMs, animar) {
+  clearTimeout(timerOrdem);
+  if (!atrasoMs || !animar || prefersReduced()) {
+    ordenarCards(animar);
+    return;
+  }
+  timerOrdem = setTimeout(() => ordenarCards(true), atrasoMs);
+}
+
+function renderMedicamentos(animar = true, atrasoOrdemMs = 0) {
+  const now = new Date();
+  const meds = state.medications;
+  el.emptyMedicamentos.hidden = meds.length > 0;
+  el.headMedicamentos.hidden = meds.length === 0;
+
+  for (const [id, card] of cards) {
+    if (!meds.some((m) => m.id === id)) {
+      cards.delete(id);
+      if (animar) removeEl(card);
+      else card.remove();
+    }
+  }
+
+  let liberou = false;
+  let criticos = 0;
   for (const med of meds) {
     const status = computeStatus(med, now);
     checkNotification(med, status);
-
-    const card = document.createElement('div');
-    card.className = 'med-card';
-
-    const comprimidosPorDose = med.comprimidosPorDose ?? 1;
-    const estoque = med.estoque ?? 0;
-
-    const head = document.createElement('div');
-    head.className = 'med-head';
-    head.innerHTML = `
-      <div>
-        <div class="med-name"></div>
-        <div class="med-dose"></div>
-      </div>
-      <div class="med-actions">
-        <button class="icon-btn" data-action="editar" title="Editar">✎</button>
-        <button class="icon-btn" data-action="remover" title="Remover">🗑</button>
-      </div>
-    `;
-    head.querySelector('.med-name').textContent = med.nome;
-    const freqTexto = ehUmaVezAoDia(med) ? '1x ao dia · referência 8h' : `a cada ${med.intervaloHoras}h`;
-    head.querySelector('.med-dose').textContent =
-      `${med.dose} (${formatComprimidos(comprimidosPorDose)}) · ${freqTexto}`;
-    head.querySelector('[data-action="editar"]').addEventListener('click', () => abrirEdicao(med));
-    head.querySelector('[data-action="remover"]').addEventListener('click', () => removerMedicamento(med));
-    card.appendChild(head);
-
-    let pillClasse;
-    let pillTexto;
-    if (status.atrasoCritico) {
-      pillClasse = 'critico';
-      pillTexto = `⚠ Atrasado há ${formatDuracao(status.atrasoMs)}`;
-    } else if (status.atrasado) {
-      pillClasse = 'locked';
-      pillTexto = '⚠ Atrasado — passou das 8h';
-    } else if (status.podeTomar) {
-      pillClasse = 'ok';
-      pillTexto = 'Pode tomar';
-    } else {
-      pillClasse = 'locked';
-      pillTexto = status.umaVezAoDia ? `Libera às ${formatHora(status.proxima)}` : `Próxima às ${formatHora(status.proxima)}`;
+    let card = cards.get(med.id);
+    const novo = !card;
+    if (novo) {
+      card = criarCard(med.id);
+      cards.set(med.id, card);
+      el.listaMedicamentos.appendChild(card);
     }
-    const pill = document.createElement('div');
-    pill.className = `status-pill ${pillClasse}`;
-    pill.innerHTML = '<span class="dot"></span><span></span>';
-    pill.querySelector('span:last-child').textContent = pillTexto;
-    card.appendChild(pill);
-
-    if (!status.podeTomar) {
-      const meta = document.createElement('div');
-      meta.className = 'meta-line';
-      meta.textContent = `Faltam ${formatDuracao(status.restanteMs)} · última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
-      card.appendChild(meta);
-    } else if (status.atrasoCritico) {
-      const meta = document.createElement('div');
-      meta.className = 'meta-line';
-      meta.textContent = `Última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
-      card.appendChild(meta);
-
-      const alerta = document.createElement('div');
-      alerta.className = 'alerta-critico';
-      alerta.innerHTML = '<strong></strong><span></span>';
-      alerta.querySelector('strong').textContent = `⚠ Mais de 24h sem tomar ${med.nome}`;
-      alerta.querySelector('span').textContent =
-        'Ficar tanto tempo sem essa dose pode ter consequências negativas à sua saúde. Tome assim que possível ou busque orientação médica.';
-      card.appendChild(alerta);
-    } else if (status.atrasado) {
-      const meta = document.createElement('div');
-      meta.className = 'meta-line';
-      meta.textContent = `Última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
-      card.appendChild(meta);
+    if (!card._busy) {
+      const r = atualizarCard(card, med, status, now, animar && !novo);
+      if (r.liberou) liberou = true;
     }
-
-    const estoqueLine = document.createElement('div');
-    estoqueLine.className = 'stock-line';
-    const estoqueInsuficiente = estoque < comprimidosPorDose;
-    estoqueLine.innerHTML = `
-      <span class="stock-text${estoqueInsuficiente ? ' estoque-baixo' : ''}"></span>
-      <button class="icon-btn" data-action="estoque" title="Ajustar estoque">📦</button>
-    `;
-    estoqueLine.querySelector('.stock-text').textContent = estoqueInsuficiente
-      ? `Estoque: ${formatComprimidos(estoque)} · insuficiente para a próxima dose`
-      : `Estoque: ${formatComprimidos(estoque)}`;
-    estoqueLine.querySelector('[data-action="estoque"]').addEventListener('click', () => abrirAjusteEstoque(med));
-    card.appendChild(estoqueLine);
-
-    const takeBtn = document.createElement('button');
-    takeBtn.className = `take-btn ${status.podeTomar ? 'ok' : 'locked'}`;
-    takeBtn.textContent = status.podeTomar ? 'Tomei agora' : 'Registrar mesmo assim';
-    takeBtn.addEventListener('click', () => tomarMedicamento(med.id));
-    card.appendChild(takeBtn);
-
-    el.listaMedicamentos.appendChild(card);
+    if (status.atrasoCritico) criticos++;
+    if (novo && animar && !primeiraRenderizacao) fadeIn(card, 320);
   }
+
+  const atraso = liberou ? ATRASO_ORDEM_LIBERACAO_MS : atrasoOrdemMs;
+  agendarOrdem(atraso, animar && !primeiraRenderizacao);
+  if (primeiraRenderizacao && activeTab === 'medicamentos') intro([...el.listaMedicamentos.children]);
+
+  const n = meds.length;
+  el.resumoMedicamentos.textContent = '';
+  el.resumoMedicamentos.append(`${n} ${n === 1 ? 'cadastrado' : 'cadastrados'}`);
+  if (criticos) {
+    const b = document.createElement('b');
+    b.textContent = `${criticos} ${criticos === 1 ? 'atrasado' : 'atrasados'}`;
+    el.resumoMedicamentos.append(' · ', b);
+  }
+}
+
+// Carimbo de dose (movimento 04): o card fica "ocupado" até o carimbo
+// assentar; só então muda de estado e de posição.
+function carimbar(card, med, now) {
+  card._busy = true;
+  const botao = card.querySelector('.action button');
+  if (botao) botao.disabled = true;
+  stamp(card, `Tomado · ${formatHora(now)}`, botao);
+  const estoque = med.estoque ?? 0;
+  roll(card.querySelector('.fv-estoque'), numero(estoque), true);
+  card.querySelector('.chip-insuf').hidden = estoque >= (med.comprimidosPorDose ?? 1);
+  card.querySelector('.fv-ultima').textContent = diaHoraCurto(now, now);
+  setTimeout(
+    () => {
+      card._busy = false;
+      unstamp(card);
+      renderMedicamentos(true, ATRASO_ORDEM_CARIMBO_MS);
+    },
+    prefersReduced() ? 900 : 1100,
+  );
 }
 
 function renderEstoque() {
   const meds = [...state.medications].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   el.emptyEstoque.hidden = meds.length > 0;
-  el.listaEstoque.innerHTML = '';
+  el.headEstoque.hidden = meds.length === 0;
+  el.listaEstoque.textContent = '';
 
   for (const med of meds) {
     const comprimidosPorDose = med.comprimidosPorDose ?? 1;
     const estoque = med.estoque ?? 0;
-    const estoqueInsuficiente = estoque < comprimidosPorDose;
     const dias = diasRestantesEstoque(med);
-    const duracaoBaixa = dias !== null && dias <= 7;
 
     const row = document.createElement('div');
-    row.className = 'estoque-item';
+    row.className = 'estoque-row';
     row.innerHTML = `
-      <div class="estoque-info">
-        <div class="name"></div>
-        <div class="detail"></div>
-        <div class="duracao"></div>
-      </div>
-      <div class="estoque-actions">
-        <span class="estoque-qtd${estoqueInsuficiente ? ' estoque-baixo' : ''}"></span>
-        <button class="icon-btn" data-action="editar" title="Editar remédio">✎</button>
-        <button class="icon-btn" data-action="estoque" title="Ajustar estoque">📦</button>
-      </div>
+      <button class="estoque-main" type="button">
+        <span class="estoque-info"><span class="estoque-nome"></span><span class="estoque-meta"></span></span>
+        <span class="estoque-qtd"><span class="estoque-num"></span><span class="estoque-unit">comp.</span></span>
+        <span class="estoque-dias"><span class="estoque-dias-txt"></span></span>
+      </button>
+      <button class="icon-btn" type="button">${icone('i-editar')}</button>
     `;
-    row.querySelector('.name').textContent = med.nome;
-    row.querySelector('.detail').textContent = `${med.dose} · ${formatComprimidos(comprimidosPorDose)} por dose`;
-    const duracaoEl = row.querySelector('.duracao');
-    duracaoEl.textContent = formatDiasRestantes(dias);
-    duracaoEl.classList.toggle('duracao-baixa', duracaoBaixa);
-    row.querySelector('.estoque-qtd').textContent = formatComprimidos(estoque);
-    row.querySelector('[data-action="editar"]').addEventListener('click', () => abrirEdicao(med));
-    row.querySelector('[data-action="estoque"]').addEventListener('click', () => abrirAjusteEstoque(med));
+    row.querySelector('.estoque-nome').textContent = med.nome;
+    row.querySelector('.estoque-meta').textContent = `${med.dose} · ${numero(comprimidosPorDose)} comp por dose`;
+    row.querySelector('.estoque-num').textContent = numero(estoque);
+    row.querySelector('.estoque-dias-txt').textContent = formatDiasRestantes(dias);
+
+    let alerta = null;
+    if (estoque <= 0) alerta = 'Esgotado';
+    else if (estoque < comprimidosPorDose) alerta = 'Insuficiente';
+    else if (dias !== null && dias <= 7) alerta = 'Repor';
+    if (alerta) {
+      const chip = document.createElement('span');
+      chip.className = 'chip solid';
+      chip.textContent = alerta;
+      row.querySelector('.estoque-dias').appendChild(chip);
+    }
+
+    const main = row.querySelector('.estoque-main');
+    main.setAttribute('aria-label', `Ajustar estoque de ${med.nome}: ${formatComprimidos(estoque)}`);
+    main.addEventListener('click', () => abrirAjusteEstoque(med));
+    const editar = row.querySelector('.icon-btn');
+    editar.setAttribute('aria-label', `Editar ${med.nome}`);
+    editar.addEventListener('click', () => abrirEdicao(med));
     el.listaEstoque.appendChild(row);
   }
 }
 
 function renderHistorico() {
+  const now = new Date();
   const items = [...state.history].sort((a, b) => new Date(b.tomadoEm) - new Date(a.tomadoEm));
   el.emptyHistorico.hidden = items.length > 0;
-  el.listaHistorico.innerHTML = '';
+  el.headHistorico.hidden = items.length === 0;
+  el.listaHistorico.textContent = '';
 
+  let diaAtual = null;
+  let primeiraNova = null;
   for (const item of items) {
+    const quando = new Date(item.tomadoEm);
+    if (quando.toDateString() !== diaAtual) {
+      diaAtual = quando.toDateString();
+      const dia = document.createElement('div');
+      dia.className = 'dia';
+      dia.textContent = rotuloDia(quando, now);
+      el.listaHistorico.appendChild(dia);
+    }
+
     const med = state.medications.find((m) => m.id === item.medicamentoId);
+    const nome = med ? med.nome : 'Remédio removido';
     const row = document.createElement('div');
-    row.className = 'hist-item';
+    row.className = 'hist-row';
     row.innerHTML = `
-      <div class="hist-info">
-        <span class="name"></span>${item.forcado ? '<span class="badge-forcado">forçado</span>' : ''}
-        <div class="when"></div>
-      </div>
-      <button class="icon-btn" data-action="apagar" title="Apagar registro">🗑</button>
+      <span class="hist-hora"></span>
+      <span class="hist-nome"><span class="hist-nome-txt"></span></span>
+      <span class="hist-meta"></span>
+      <button class="icon-btn" type="button">${icone('i-excluir')}</button>
     `;
-    row.querySelector('.name').textContent = med ? med.nome : '(remédio removido)';
-    row.querySelector('.when').textContent = `${formatDiaHora(new Date(item.tomadoEm))}${med ? ' · ' + med.dose : ''}`;
-    row.querySelector('[data-action="apagar"]').addEventListener('click', () => apagarHistorico(item.id));
+    row.querySelector('.hist-hora').textContent = formatHora(quando);
+    row.querySelector('.hist-nome-txt').textContent = nome;
+    if (item.forcado) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = 'Antes da hora';
+      row.querySelector('.hist-nome').appendChild(chip);
+    }
+    if (med) {
+      const comprimidos = item.comprimidos ?? med.comprimidosPorDose ?? 1;
+      row.querySelector('.hist-meta').textContent = `${med.dose} · ${formatComprimidos(comprimidos)}`;
+    }
+    const apagar = row.querySelector('.icon-btn');
+    apagar.setAttribute('aria-label', `Apagar registro de ${nome} às ${formatHora(quando)}`);
+    apagar.addEventListener('click', () => apagarHistorico(item.id));
     el.listaHistorico.appendChild(row);
+
+    if (historicoNovo.has(item.id)) {
+      historicoNovo.delete(item.id);
+      if (!primeiraNova) primeiraNova = row;
+    }
+  }
+  if (primeiraNova) printRow(primeiraNova);
+}
+
+function atualizarRelogio(now, animar) {
+  el.relogioData.textContent = `${DIAS_SEMANA[now.getDay()]} ${pad2(now.getDate())} ${MESES[now.getMonth()]} ·`;
+  roll(el.relogioHora, formatHora(now), animar);
+}
+
+function posicionarIndicador() {
+  const [botao] = TABS[activeTab]();
+  el.tabInd.style.width = `${botao.offsetWidth}px`;
+  el.tabInd.style.transform = `translateX(${botao.offsetLeft}px)`;
+}
+
+function switchTab(tab) {
+  const mudou = tab !== activeTab;
+  activeTab = tab;
+  for (const [nome, partes] of Object.entries(TABS)) {
+    const [botao, view] = partes();
+    const ativo = nome === tab;
+    botao.setAttribute('aria-selected', String(ativo));
+    botao.tabIndex = ativo ? 0 : -1;
+    view.hidden = !ativo;
+  }
+  posicionarIndicador();
+  render();
+  if (mudou) {
+    window.scrollTo(0, 0);
+    enterView(TABS[tab]()[1]);
+    if (tab === 'medicamentos') document.querySelectorAll('.fita-track').forEach(ajustarFita);
   }
 }
 
-function render() {
-  if (activeTab === 'medicamentos') renderMedicamentos();
-  else if (activeTab === 'estoque') renderEstoque();
-  else renderHistorico();
+function render(animar = true) {
+  atualizarRelogio(new Date(), animar);
+  renderMedicamentos(animar);
+  if (activeTab === 'estoque') renderEstoque();
+  else if (activeTab === 'historico') renderHistorico();
+  primeiraRenderizacao = false;
 }
 
 function checkNotification(med, status) {
@@ -350,6 +671,8 @@ function fireNotification(title, body) {
 async function tomarMedicamento(medId, forcado = false) {
   const med = state.medications.find((m) => m.id === medId);
   if (!med) return;
+  const card = cards.get(medId);
+  if (card && card._busy) return;
   const now = new Date();
   const status = computeStatus(med, now);
 
@@ -368,18 +691,21 @@ async function tomarMedicamento(medId, forcado = false) {
   }
 
   const comprimidos = med.comprimidosPorDose ?? 1;
-  state.history.push({
+  const registro = {
     id: uid(),
     medicamentoId: med.id,
     tomadoEm: now.toISOString(),
     forcado: !status.podeTomar,
     comprimidos,
-  });
+  };
+  state.history.push(registro);
+  historicoNovo.add(registro.id);
   med.ultimaTomada = now.toISOString();
   med.estoque = Math.max(0, roundToHalf((med.estoque ?? 0) - comprimidos));
   saveState(state);
+  if (card && activeTab === 'medicamentos') carimbar(card, med, now);
   render();
-  toast(`${med.nome} registrado às ${formatHora(now)}`, 'success');
+  toast(`Dose de ${med.nome} registrada · ${formatHora(now)}`, 'success');
 }
 
 function recomputeUltimaTomada(med) {
@@ -429,6 +755,7 @@ async function removerMedicamento(med) {
 
 function abrirCadastro() {
   el.medModalTitle.textContent = 'Novo remédio';
+  el.medExcluir.hidden = true;
   el.medId.value = '';
   el.medNome.value = '';
   el.medDose.value = '';
@@ -441,6 +768,7 @@ function abrirCadastro() {
 
 function abrirEdicao(med) {
   el.medModalTitle.textContent = 'Editar remédio';
+  el.medExcluir.hidden = false;
   el.medId.value = med.id;
   el.medNome.value = med.nome;
   el.medDose.value = med.dose;
@@ -489,7 +817,7 @@ function salvarMedicamento(ev) {
 }
 
 function abrirAjusteEstoque(med) {
-  el.estoqueModalTitle.textContent = `Ajustar estoque · ${med.nome}`;
+  el.estoqueModalTitle.textContent = med.nome;
   el.estoqueMedId.value = med.id;
   el.estoqueValor.value = med.estoque ?? 0;
   openSheet(el.modalEstoque);
@@ -707,7 +1035,27 @@ function wireEvents() {
   el.tabEstoque.addEventListener('click', () => switchTab('estoque'));
   el.tabHistorico.addEventListener('click', () => switchTab('historico'));
   el.btnNovo.addEventListener('click', abrirCadastro);
+  document.querySelectorAll('[data-action="novo"]').forEach((b) => b.addEventListener('click', abrirCadastro));
   el.medCancel.addEventListener('click', () => closeSheet(el.modalMedicamento));
+  el.medExcluir.addEventListener('click', () => {
+    const med = state.medications.find((m) => m.id === el.medId.value);
+    closeSheet(el.modalMedicamento);
+    if (med) removerMedicamento(med);
+  });
+
+  // Setas trocam de aba, como em qualquer tablist.
+  const ordemAbas = ['medicamentos', 'estoque', 'historico'];
+  document.querySelector('.tabs').addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const i = ordemAbas.indexOf(activeTab);
+    const prox = ordemAbas[(i + (e.key === 'ArrowRight' ? 1 : ordemAbas.length - 1)) % ordemAbas.length];
+    switchTab(prox);
+    TABS[prox]()[0].focus();
+  });
+  window.addEventListener('resize', posicionarIndicador);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') render();
+  });
   el.formMedicamento.addEventListener('submit', salvarMedicamento);
 
   el.estoqueMenos.addEventListener('click', () => passoEstoque(-0.5));
@@ -757,10 +1105,16 @@ async function registerServiceWorker() {
       if (!installing) return;
       installing.addEventListener('statechange', () => {
         if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-          const banner = document.getElementById('update-banner');
+          const banner = el.updateBanner;
           banner.hidden = false;
           banner.onclick = () => {
             installing.postMessage('skipWaiting');
+          };
+          banner.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              installing.postMessage('skipWaiting');
+            }
           };
         }
       });
@@ -779,7 +1133,17 @@ async function registerServiceWorker() {
 
 function init() {
   wireEvents();
-  render();
+  render(false);
+  posicionarIndicador();
+  // Nada anima na primeira pintura: as transições só valem depois de 2 frames.
+  requestAnimationFrame(() => requestAnimationFrame(() => el.app.classList.remove('no-tr')));
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      posicionarIndicador();
+      document.querySelectorAll('.fita-track').forEach(ajustarFita);
+    });
+  }
+  onReducedChange(() => render(false));
   setInterval(render, 15000);
   registerServiceWorker();
   window.__mcBooted = true;
