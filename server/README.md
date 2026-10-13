@@ -119,7 +119,7 @@ https://medcontrol-push.SEU-SUBDOMINIO.workers.dev
 
 ## 7. Ligar ao app
 
-No MedControl → ⚙ Ajustes → **Lembrete diário (8h)**:
+No MedControl → Ajustes → **Lembrete diário (8h)**:
 
 1. Cole a URL do passo 6 em "Endereço do servidor";
 2. Cole o `APP_SECRET` do passo 5 (se configurou um);
