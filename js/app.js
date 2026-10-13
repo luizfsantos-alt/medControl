@@ -28,7 +28,7 @@ import {
   onReducedChange,
 } from './motion.js';
 
-const VERSION = '2.0.1';
+const VERSION = '2.0.2';
 const ATRASO_CRITICO_MS = 24 * 3600000;
 const VAPID_PUBLIC_KEY = 'BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg';
 const PUSH_CONFIG_KEY = 'medcontrol_push_config_v1';
