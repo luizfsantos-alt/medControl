@@ -204,9 +204,11 @@ Os botões de ícone são quadrados de 38–44px, com borda de 1px em
 
 ### 3.6 Marca
 
-A arte final está em `docs/redesign/marca/`. É a cápsula diagonal com
-contorno de tinta, metade lima e metade tinta, separadas por um divisor.
-Ela substitui o símbolo de dois retângulos da maquete.
+A arte final está em `docs/redesign/marca/`. É um bloco diagonal (45°)
+de cantos retos, com contorno de tinta, duas metades quadradas (lima e
+tinta) e um divisor. Contorno, folgas e divisor têm a mesma espessura.
+Na maquete, o símbolo era a versão horizontal desse mesmo conceito; vale
+a versão diagonal daqui.
 
 `original-gerado.jpg` é a imagem gerada pela mesa. Os demais arquivos são
 o redesenho em vetor dela (`comparacao.png` mostra os dois lado a lado).
