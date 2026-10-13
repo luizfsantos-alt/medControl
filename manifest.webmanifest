@@ -2,6 +2,7 @@
   "name": "MedControl",
   "short_name": "MedControl",
   "description": "Registre o uso dos seus remédios diários e evite tomar a mesma dose duas vezes.",
+  "id": "./?app=medcontrol-v2",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
