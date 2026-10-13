@@ -13,7 +13,7 @@ import {
   urlBase64ToUint8Array,
 } from './util.js';
 
-const VERSION = '1.3.1';
+const VERSION = '1.4.0';
 const ATRASO_CRITICO_MS = 24 * 3600000;
 const VAPID_PUBLIC_KEY = 'BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg';
 const PUSH_CONFIG_KEY = 'medcontrol_push_config_v1';
@@ -74,11 +74,61 @@ const el = {
   importCancel: document.getElementById('import-cancel'),
 };
 
+const HORARIO_DOSE_1X_DIA = 8; // horário de referência pra remédios de 1x ao dia
+const INTERVALO_SEGURANCA_1X_DIA_MS = 12 * 3600000;
+
+function ehUmaVezAoDia(med) {
+  return med.intervaloHoras === 24;
+}
+
+// Marco das 8h mais recente que já passou (hoje, ou ontem se ainda não deu 8h hoje).
+function marco8hMaisRecente(now) {
+  const marco = new Date(now);
+  marco.setHours(HORARIO_DOSE_1X_DIA, 0, 0, 0);
+  if (marco.getTime() > now.getTime()) marco.setDate(marco.getDate() - 1);
+  return marco;
+}
+
 function computeStatus(med, now) {
+  const umaVezAoDia = ehUmaVezAoDia(med);
+
   if (!med.ultimaTomada) {
-    return { podeTomar: true, proxima: null, restanteMs: 0, atrasoMs: 0, atrasoCritico: false };
+    return {
+      podeTomar: true,
+      proxima: null,
+      restanteMs: 0,
+      atrasoMs: 0,
+      atrasoCritico: false,
+      atrasado: false,
+      atrasoAgendaMs: 0,
+      msDesdeUltima: null,
+      umaVezAoDia,
+    };
   }
+
   const ultima = new Date(med.ultimaTomada).getTime();
+
+  if (umaVezAoDia) {
+    const liberaEm = ultima + INTERVALO_SEGURANCA_1X_DIA_MS;
+    const podeTomar = now.getTime() >= liberaEm;
+    const marco = marco8hMaisRecente(now).getTime();
+    const atrasado = ultima < marco;
+    const atrasoAgendaMs = atrasado ? now.getTime() - marco : 0;
+    const msDesdeUltima = now.getTime() - ultima;
+    const atrasoCritico = msDesdeUltima > ATRASO_CRITICO_MS;
+    return {
+      podeTomar,
+      proxima: new Date(liberaEm),
+      restanteMs: liberaEm - now.getTime(),
+      atrasoMs: Math.max(0, msDesdeUltima - ATRASO_CRITICO_MS),
+      atrasoCritico,
+      atrasado,
+      atrasoAgendaMs,
+      msDesdeUltima,
+      umaVezAoDia,
+    };
+  }
+
   const proxima = ultima + med.intervaloHoras * 3600000;
   const restanteMs = proxima - now.getTime();
   const atrasoMs = Math.max(0, -restanteMs);
@@ -88,6 +138,10 @@ function computeStatus(med, now) {
     restanteMs,
     atrasoMs,
     atrasoCritico: atrasoMs > ATRASO_CRITICO_MS,
+    atrasado: false,
+    atrasoAgendaMs: 0,
+    msDesdeUltima: now.getTime() - ultima,
+    umaVezAoDia,
   };
 }
 
@@ -132,21 +186,32 @@ function renderMedicamentos() {
       </div>
     `;
     head.querySelector('.med-name').textContent = med.nome;
+    const freqTexto = ehUmaVezAoDia(med) ? '1x ao dia · referência 8h' : `a cada ${med.intervaloHoras}h`;
     head.querySelector('.med-dose').textContent =
-      `${med.dose} (${formatComprimidos(comprimidosPorDose)}) · a cada ${med.intervaloHoras}h`;
+      `${med.dose} (${formatComprimidos(comprimidosPorDose)}) · ${freqTexto}`;
     head.querySelector('[data-action="editar"]').addEventListener('click', () => abrirEdicao(med));
     head.querySelector('[data-action="remover"]').addEventListener('click', () => removerMedicamento(med));
     card.appendChild(head);
 
-    const pillClasse = status.atrasoCritico ? 'critico' : status.podeTomar ? 'ok' : 'locked';
+    let pillClasse;
+    let pillTexto;
+    if (status.atrasoCritico) {
+      pillClasse = 'critico';
+      pillTexto = `⚠ Atrasado há ${formatDuracao(status.atrasoMs)}`;
+    } else if (status.atrasado) {
+      pillClasse = 'locked';
+      pillTexto = '⚠ Atrasado — passou das 8h';
+    } else if (status.podeTomar) {
+      pillClasse = 'ok';
+      pillTexto = 'Pode tomar';
+    } else {
+      pillClasse = 'locked';
+      pillTexto = status.umaVezAoDia ? `Libera às ${formatHora(status.proxima)}` : `Próxima às ${formatHora(status.proxima)}`;
+    }
     const pill = document.createElement('div');
     pill.className = `status-pill ${pillClasse}`;
     pill.innerHTML = '<span class="dot"></span><span></span>';
-    pill.querySelector('span:last-child').textContent = status.atrasoCritico
-      ? `⚠ Atrasado há ${formatDuracao(status.atrasoMs)}`
-      : status.podeTomar
-        ? 'Pode tomar'
-        : `Próxima às ${formatHora(status.proxima)}`;
+    pill.querySelector('span:last-child').textContent = pillTexto;
     card.appendChild(pill);
 
     if (!status.podeTomar) {
@@ -167,6 +232,11 @@ function renderMedicamentos() {
       alerta.querySelector('span').textContent =
         'Ficar tanto tempo sem essa dose pode ter consequências negativas à sua saúde. Tome assim que possível ou busque orientação médica.';
       card.appendChild(alerta);
+    } else if (status.atrasado) {
+      const meta = document.createElement('div');
+      meta.className = 'meta-line';
+      meta.textContent = `Última dose ${formatDiaHora(new Date(med.ultimaTomada))}`;
+      card.appendChild(meta);
     }
 
     const estoqueLine = document.createElement('div');
@@ -284,9 +354,12 @@ async function tomarMedicamento(medId, forcado = false) {
   const status = computeStatus(med, now);
 
   if (!status.podeTomar && !forcado) {
+    const intervaloTexto = status.umaVezAoDia
+      ? 'O intervalo mínimo de segurança é de 12h.'
+      : `O intervalo recomendado é de ${med.intervaloHoras}h.`;
     const confirmado = await confirmDialog({
       title: 'Registrar mesmo assim?',
-      message: `Você tomou ${med.nome} há ${formatDuracao(now - new Date(med.ultimaTomada))} (às ${formatHora(new Date(med.ultimaTomada))}). O intervalo recomendado é de ${med.intervaloHoras}h. Confirme apenas se tiver certeza de que não é dose duplicada.`,
+      message: `Você tomou ${med.nome} há ${formatDuracao(now - new Date(med.ultimaTomada))} (às ${formatHora(new Date(med.ultimaTomada))}). ${intervaloTexto} Confirme apenas se tiver certeza de que não é dose duplicada.`,
       okText: 'Registrar mesmo assim',
       danger: true,
     });

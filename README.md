@@ -46,6 +46,25 @@ que a dose ficou disponível, não do horário da última dose), o status vira
 vermelho — "⚠ Atrasado há Xh" — e um aviso explícito aparece no card
 avisando que isso pode ter consequências negativas à saúde.
 
+**Remédios de 1x ao dia.** Cadastrar um remédio com intervalo de **24h**
+muda o comportamento do card: em vez de contar a partir da última dose, o
+app passa a considerar **8h** como o horário de referência da dose diária.
+
+- Libera para tomar quando já tiverem passado **12h desde a última dose**
+  — vale tanto antes quanto depois das 8h (quem toma cedo não fica
+  bloqueado até o dia seguinte).
+- Depois das 8h, se a dose do dia ainda não foi registrada, o card mostra
+  **"⚠ Atrasado — passou das 8h"**. É só aviso: se já tiver passado das
+  12h de segurança, o botão continua liberado direto.
+- Se passar das 8h **e** ainda não tiverem completado 12h desde a última
+  dose, o botão vira "Registrar mesmo assim" com confirmação — mesma
+  barreira contra dose duplicada, só que medida pelas 12h em vez do
+  intervalo cadastrado.
+- O tempo desde a última dose continua aparecendo no card, mas só como
+  referência — quem decide o status agora são as 8h e as 12h.
+- O alerta de 24h acima continua valendo do mesmo jeito, contado a partir
+  da última dose registrada.
+
 **"Tomei agora"** registra a dose na hora. Se o remédio ainda estiver dentro
 do intervalo, o botão vira **"Registrar mesmo assim"** e pede confirmação
 explícita antes de gravar — é a barreira contra dose duplicada por
