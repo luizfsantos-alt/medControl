@@ -28,14 +28,15 @@ import {
   onReducedChange,
 } from './motion.js';
 
-const VERSION = '2.0.2';
+const VERSION = '2.0.3';
 const ATRASO_CRITICO_MS = 24 * 3600000;
 const VAPID_PUBLIC_KEY = 'BKSAhZOEXpGaragLcfwcMTF2NRG3mD-vLWl5DLD2yCoB9SOAjWiUxX2qaOAEK7SgeVGAVFuGY7P5zqO7fcPczNg';
 const PUSH_CONFIG_KEY = 'medcontrol_push_config_v1';
+const AVISOS_KEY = 'medcontrol_avisos_v1';
 
 let state = loadState();
 let activeTab = 'medicamentos';
-let notificacoesAtivas = false;
+let notificacoesAtivas = carregarAvisosAtivos();
 let statusAnterior = new Map();
 
 const el = {
@@ -659,12 +660,38 @@ function checkNotification(med, status) {
   }
 }
 
-function fireNotification(title, body) {
+async function fireNotification(title, body) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opcoes = { body, icon: 'assets/icon-v2-192.png', badge: 'assets/badge-96.png' };
+  // No Android (Chrome e PWA instalado) o construtor Notification não existe:
+  // lança "Illegal constructor". Lá só funciona via service worker.
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification(title, opcoes);
+        return;
+      }
+    } catch {
+      /* cai para o construtor abaixo */
+    }
+  }
   try {
-    new Notification(title, { body, icon: 'assets/icon-v2-192.png' });
+    new Notification(title, opcoes);
   } catch {
-    /* alguns navegadores exigem service worker para notificações; ignorar falha */
+    /* sem service worker e sem construtor: não há como notificar */
+  }
+}
+
+function carregarAvisosAtivos() {
+  try {
+    return (
+      localStorage.getItem(AVISOS_KEY) === '1' &&
+      'Notification' in window &&
+      Notification.permission === 'granted'
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -890,6 +917,12 @@ async function ativarNotificacoes() {
   }
   const permissao = await Notification.requestPermission();
   notificacoesAtivas = permissao === 'granted';
+  try {
+    localStorage.setItem(AVISOS_KEY, notificacoesAtivas ? '1' : '0');
+  } catch {
+    /* sem storage o aviso vale só até fechar o app */
+  }
+  if (notificacoesAtivas) fireNotification('MedControl', 'Avisos de horário ativados.');
   toast(
     notificacoesAtivas
       ? 'Avisos ativados enquanto o app estiver aberto'
