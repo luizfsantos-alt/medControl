@@ -1,2 +1,9 @@
-.DS_Store
 node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.apk
+*.keystore
+.DS_Store

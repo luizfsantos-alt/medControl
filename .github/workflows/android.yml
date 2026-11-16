@@ -1,0 +1,96 @@
+name: APK Android
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache do Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes e checagem de tipos
+        run: |
+          npx vitest run
+          npx tsc --noEmit
+
+      - name: Gerar projeto Android
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Compilar APK
+        working-directory: android
+        # só arm64-v8a: o processador de praticamente todo Android atual (build ~4x mais rápido)
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Assinar
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          OUT=medcontrol-3.0.${{ github.run_number }}.apk
+          SRC=android/app/build/outputs/apk/release/app-release.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          if [ -n "$KEYSTORE_B64" ]; then
+            # chave própria, guardada nos segredos do repositório
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/medcontrol.keystore"
+            "$BT/zipalign" -f -p 4 "$SRC" aligned.apk
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/medcontrol.keystore" --ks-key-alias medcontrol \
+              --ks-pass env:KEYSTORE_PASS --key-pass env:KEYSTORE_PASS --out "$OUT" aligned.apk
+            rm -f "$RUNNER_TEMP/medcontrol.keystore"
+          else
+            # sem segredo: fica a assinatura de desenvolvimento do modelo Expo (fixa entre builds)
+            cp "$SRC" "$OUT"
+          fi
+          "$BT/apksigner" verify "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medcontrol-apk
+          path: medcontrol-3.0.${{ github.run_number }}.apk
+
+      - name: Publicar versão para baixar no celular
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.0.${{ github.run_number }}
+          name: MedControl 3.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          body: |
+            Baixe o arquivo `.apk` abaixo no celular e toque para instalar.
+            Instalar por cima da versão anterior mantém os dados.
+          files: medcontrol-3.0.${{ github.run_number }}.apk
