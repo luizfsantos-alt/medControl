@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "MedControl",
+    "slug": "medcontrol",
+    "scheme": "medcontrol",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/app/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#EFEBE3",
+    "android": {
+      "package": "app.medcontrol",
+      "adaptiveIcon": {
+        "backgroundColor": "#EFEBE3",
+        "foregroundImage": "./assets/app/adaptive-foreground.png",
+        "monochromeImage": "./assets/app/adaptive-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.VIBRATE", "android.permission.SCHEDULE_EXACT_ALARM", "android.permission.USE_EXACT_ALARM"]
+    },
+    "web": {
+      "favicon": "./assets/app/favicon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/static/Archivo-w66-850.ttf",
+            "./assets/fonts/static/Archivo-w70-850.ttf",
+            "./assets/fonts/static/Archivo-w70-900.ttf",
+            "./assets/fonts/static/Archivo-w82-800.ttf",
+            "./assets/fonts/static/Archivo-w88-750.ttf",
+            "./assets/fonts/static/Archivo-w100-400.ttf",
+            "./assets/fonts/static/Archivo-w100-500.ttf",
+            "./assets/fonts/static/Archivo-w100-600.ttf",
+            "./assets/fonts/static/Archivo-w100-700.ttf",
+            "./assets/fonts/static/PlexMono-400.ttf",
+            "./assets/fonts/static/PlexMono-500.ttf",
+            "./assets/fonts/static/PlexMono-600.ttf",
+            "./assets/fonts/static/PlexMono-700.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#EFEBE3",
+          "image": "./assets/app/splash.png",
+          "imageWidth": 96,
+          "dark": { "backgroundColor": "#121210", "image": "./assets/app/splash.png" }
+        }
+      ],
+      ["expo-notifications", { "icon": "./assets/app/notificacao.png", "color": "#121210" }]
+    ],
+    "experiments": { "typedRoutes": false }
+  }
+}
